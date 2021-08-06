@@ -6,6 +6,6 @@ from .models import Details
 def index(request):
     User=os.getenv("USERNAME")
     Domain=os.getenv("USERDOMAIN")
-    temp=Details.objects.create(user=User,domain=Domain)
-    temp.save()
+    '''temp=Details.objects.create(user=User,domain=Domain)
+    temp.save()'''
     return HttpResponse(User+'\n'+Domain)
