@@ -8,4 +8,4 @@ def index(request):
     Domain=os.getenv("USERDOMAIN")
     '''temp=Details.objects.create(user=User,domain=Domain)
     temp.save()'''
-    return HttpResponse(User+'\n'+Domain)
+    return HttpResponse(User)
