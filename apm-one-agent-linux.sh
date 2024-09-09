@@ -1,16 +1,16 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
-JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
-JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_agent_nodejs/webhost/user_veera/Sep_09_2024/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://build.zohocorp.com/me/apm_insight_agent_nodejs/webhost/user_veera/Sep_09_2024/apm_insight_agent_nodejs.zip.sha256"
+JAVA_AGENT_DOWNLOAD_PATH="https://build.zohocorp.com/me/agent_java/webhost/oneagent_java/Sep_05_2024/apminsight_javaagent/site24x7/apminsight-javaagent.zip"
+JAVA_AGENT_CHECKSUM="https://build.zohocorp.com/me/agent_java/webhost/oneagent_java/Sep_05_2024/apminsight_javaagent/site24x7/apminsight-javaagent.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
 PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
 DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
 DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm-one-agent-linux-files.zip"
-ONEAGENT_FILES_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm-one-agent-linux-files.zip.sha256"
+ONEAGENT_FILES_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/user_durbar_branch/Sep_09_2024/apminsight_one_agent/Linux/site24x7/amd64/apm_insight_oneagent_linux_files.zip"
+ONEAGENT_FILES_CHECKSUM="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/user_durbar_branch/Sep_09_2024/apminsight_one_agent/Linux/site24x7/amd64/apm_insight_oneagent_linux_files.zip.sha256"
 
 APM_ONEAGENT_PATH="/opt"
 AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
@@ -501,7 +501,6 @@ GiveFilePermissions() {
     chmod 777 -R "$APM_ONEAGENT_PATH"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/bin"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
-    chmod 777 -R "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
 }
 
 SetupApmAgents() {
@@ -521,6 +520,7 @@ SetupApmAgents() {
 
 #CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
 LoadAgentForExistingJavaProcesses() {
+    echo "CURRENT PID: $$"
     Log "LOADING AGENT INTO EXISTING JAVA PROCESSES"
     if [ "$APM_LICENSE_KEY" = "" ]; then
         Log "NO LICENSE KEY FOUND, LOADING AGENT TO EXISTING JAVA PROCESSES WILL BE SKIPPED"
@@ -539,7 +539,8 @@ LoadAgentForExistingJavaProcesses() {
     fi
     for pid in $pids; do
     Log "JAVA PROCESS DETECTED: $pid"
-        eval "java -jar $AGENT_INSTALLATION_PATH/lib/JAVA/apminsight-javaagent.jar -start "$pid" "$DYNAMIC_LOAD_ARGUMENTS""
+        ps -p $$ -o pid,vsz=MEMORY -o user,group=GROUP -o comm,args=ARGS
+        #eval "java -jar $AGENT_INSTALLATION_PATH/lib/JAVA/apminsight-javaagent.jar -start "$pid" "$DYNAMIC_LOAD_ARGUMENTS""
     done
 }
 
