@@ -501,6 +501,7 @@ GiveFilePermissions() {
     chmod 777 -R "$APM_ONEAGENT_PATH"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/bin"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
+    chmod 777 -R "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
 }
 
 SetupApmAgents() {
