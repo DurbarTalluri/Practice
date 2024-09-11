@@ -622,7 +622,7 @@ RemoveInstallationFiles() {
 
 MoveInstallationFiles() {
     if [ "$ONEAGENT_OPERATION" = "install" ]; then
-        mv "$AGENT_STARTUP_LOGFILE_PATH" "$AGENT_INSTALLATION_PATH/logs"
+        # mv "$AGENT_STARTUP_LOGFILE_PATH" "$AGENT_INSTALLATION_PATH/logs"
         mv ./apm-one-agent-linux.sh "$AGENT_INSTALLATION_PATH/bin/"
     fi
 }
@@ -747,17 +747,17 @@ CheckAgentInstallation() {
 }
 
 main() {
-    CheckArgs $@
-    CheckAgentInstallation $@
-    RedirectLogs
-    SetupPreInstallationChecks
-    SetupAgentConfigurations "$@"
-    SetupApmAgents
-    GiveFilePermissions
-    WriteToAgentConfFile
-    RegisterOneagentVersion
-    SetPreload
+    # CheckArgs $@
+    # CheckAgentInstallation $@
+    # RedirectLogs
+    # SetupPreInstallationChecks
+    # SetupAgentConfigurations "$@"
+    # SetupApmAgents
+    # GiveFilePermissions
+    # WriteToAgentConfFile
+    # RegisterOneagentVersion
+    # SetPreload
     MoveInstallationFiles
-    RemoveInstallationFiles
+    # RemoveInstallationFiles
     }
 main "$@"
