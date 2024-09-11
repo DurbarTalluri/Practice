@@ -623,7 +623,7 @@ RemoveInstallationFiles() {
 MoveInstallationFiles() {
     if [ "$ONEAGENT_OPERATION" = "install" ]; then
         # mv "$AGENT_STARTUP_LOGFILE_PATH" "$AGENT_INSTALLATION_PATH/logs"
-        mv ./apm-one-agent-linux.sh "$AGENT_INSTALLATION_PATH/bin/"
+        mv "$(dirname "$(readlink -f "$0")")"/apm-one-agent-linux.sh "$AGENT_INSTALLATION_PATH/bin/"
     fi
 }
 
