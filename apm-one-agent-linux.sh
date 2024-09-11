@@ -749,11 +749,12 @@ CheckAgentInstallation() {
 main() {
     # CheckArgs $@
     # CheckAgentInstallation $@
-    # RedirectLogs
+    RedirectLogs
     # SetupPreInstallationChecks
     # SetupAgentConfigurations "$@"
     # SetupApmAgents
-    # GiveFilePermissions
+    CreateOneAgentFiles
+    GiveFilePermissions
     # WriteToAgentConfFile
     # RegisterOneagentVersion
     # SetPreload
