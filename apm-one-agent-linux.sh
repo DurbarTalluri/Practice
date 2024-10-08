@@ -80,7 +80,7 @@ Log() {
     echo $(date +"%F %T.%N") " $1\n"
 }
 
-CheckUser() {
+CheckRoot() {
     if [ "$(id -u)" -ne 0 ]; then
         Log "OneAgent installer script is run without root privilege. Please run the script apm-one-agent-linux.sh with root privilege"
         exit 1
@@ -137,7 +137,7 @@ DetectKubernetes() {
 }
 
 SetupPreInstallationChecks() {
-    CheckUser
+    CheckRoot
     CheckBit
     CheckARM
     SetArchBasedDownloadPathExtension
