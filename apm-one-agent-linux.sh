@@ -1,18 +1,18 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_agent_nodejs/webhost/user_veera/Sep_09_2024/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://build.zohocorp.com/me/apm_insight_agent_nodejs/webhost/user_veera/Sep_09_2024/apm_insight_agent_nodejs.zip.sha256"
-JAVA_AGENT_DOWNLOAD_PATH="https://build.zohocorp.com/me/agent_java/webhost/oneagent_java/Sep_05_2024/apminsight_javaagent/site24x7/apminsight-javaagent.zip"
-JAVA_AGENT_CHECKSUM="https://build.zohocorp.com/me/agent_java/webhost/oneagent_java/Sep_05_2024/apminsight_javaagent/site24x7/apminsight-javaagent.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
+JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
+JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
 PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
 DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
 DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/user_durbar_branch/Sep_09_2024/apminsight_one_agent/Linux/site24x7/amd64/apm_insight_oneagent_linux_files.zip"
-ONEAGENT_FILES_CHECKSUM="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/user_durbar_branch/Sep_09_2024/apminsight_one_agent/Linux/site24x7/amd64/apm_insight_oneagent_linux_files.zip.sha256"
+ONEAGENT_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm-one-agent-linux-files.zip"
+ONEAGENT_FILES_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm-one-agent-linux-files.zip.sha256"
 
-APM_ONEAGENT_PATH="/opt"
+APMINSIGHT_ONEAGENT_PATH="/opt"
 AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
 PRELOAD_FILE_PATH="/etc/ld.so.preload"
 AGENT_STARTUP_LOGFILE_PATH="apm-one-agent-installation.log"
@@ -20,26 +20,20 @@ STARTUP_CONF_FILEPATH="./oneagentconf.ini"
 
 KUBERNETES_ENV=0
 BUNDLED=0
-APM_LICENSE_KEY=""
+APMINSIGHT_LICENSEKEY=""
+APMINSIGHT_LICENSE_KEY=""
 CURRENT_DIRECTORY=$(pwd)
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 AGENT_CONF_STR=""
-APM_SERVER_HOST=""
-APM_SERVER_PORT=""
-APM_SERVER_PROTOCOL=""
-APM_HOST_URL=""
-APM_PROXY_SERVER_NAME=""
-APM_PROXY_SERVER_PORT=""
-APM_PROXY_USER_NAME=""
-APM_PROXY_PASSWORD=""
-APM_PROXY_URL=""
-APM_PROXY_SERVER_PROTOCOL=""
+APMINSIGHT_HOST=""
+APMINSIGHT_PORT=""
+APMINSIGHT_HOST_URL=""
+APMINSIGHT_PROXY_URL=""
 PROXY_STR=""
-DOMAIN="com"
+APMINSIGHT_DOMAIN="com"
 PYTHON_AGENT_PATH=""
-AGENT_START_TIME=""
-AGENT_ID=""
-LICENSEKEY=""
+APMINSIGHT_AGENT_START_TIME=""
+APMINSIGHT_AGENT_ID=""
 
 OS_ARCH=$(uname -m)
 BOOLEAN_TRUE="true"
@@ -52,20 +46,16 @@ IS_NOTARM=$BOOLEAN_FALSE
 IS_32BIT=$BOOLEAN_FALSE
 IS_64BIT=$BOOLEAN_FALSE
 ARCH_BASED_DOWNLOAD_PATH_EXTENSION=""
-SECURED_PROTOCOL=""
+APMSIGHT_PROTOCOL="http"
 ONEAGENT_VERSION="1.0.0"
 ONEAGENT_OPERATION="install"
 
 displayHelp() {
     echo "Usage: $0 [option] [arguments]\n \n Options:\n"
-    echo "  --APM_LICENSE_KEY             To configure the site24x7 License key"
-    echo "  --APM_PROXY_SERVER_NAME       To configure Proxy server/host name if using any"
-    echo "  --APM_PROXY_SERVER_PORT       To configure Proxy server port"
-    echo "  --APM_PROXY_USER_NAME         To configure Proxy server username"
-    echo "  --APM_PROXY_SERVER_PORT       To configure Proxy server password"
-    echo "  --APM_PROXY_SERVER_PORT       To configure Proxy server protocol"
-    echo "  --APM_ONEAGENT_PATH           To configure Custom path for Oneagent related files"
-    echo "  --APM_MONITOR_GROUP           To configure Agent monitor groups"
+    echo "  --APMINSIGHT_LICENSE_KEY             To configure the site24x7 License key"
+    echo "  --APMINSIGHT_PROXY_URL               To configure Proxy Url if using, Format: protocol://user:password@host:port or protocol://user@host:port or protocol://host:port"
+    #echo "  --APMINSIGHT_ONEAGENT_PATH           To configure Custom path for Oneagent related files"
+    echo "  --APMINSIGHT_MONITOR_GROUP           To configure Agent monitor groups"
 }
 
 CheckArgs() {
@@ -76,6 +66,13 @@ CheckArgs() {
 }
 
 RedirectLogs() {
+    # if [ -n "$EXISTING_ONEAGENTPATH" ] && [ -f "$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log" ]; then
+    #     AGENT_STARTUP_LOGFILE_PATH="$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log"
+    if [ -f "$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log" ]; then
+        AGENT_STARTUP_LOGFILE_PATH="$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log"
+    elif [ -f "$AGENT_INSTALLATION_PATH/apm-one-agent-installation.log" ]; then
+        AGENT_STARTUP_LOGFILE_PATH="$AGENT_INSTALLATION_PATH/apm-one-agent-installation.log"
+    fi
     exec >>"$AGENT_STARTUP_LOGFILE_PATH" 2>&1
 }
 
@@ -147,32 +144,6 @@ SetupPreInstallationChecks() {
     DetectKubernetes
 }
 
-ConstructProxyUrl() {
-    if [ -n "$APM_PROXY_URL" ]; then
-        return
-    fi
-    if [ "$APM_PROXY_SERVER_NAME" ]; then
-        APM_PROXY_URL="$APM_PROXY_SERVER_NAME"
-        if [ -n "$APM_PROXY_SERVER_PORT" ]; then
-            APM_PROXY_URL="$APM_PROXY_URL:$APM_PROXY_SERVER_PORT"
-        fi
-    fi
-    if [ -n "$APM_PROXY_USER_NAME" ]; then
-        if [ -n "$APM_PROXY_PASSWORD" ]; then
-            APM_PROXY_URL="$APM_PROXY_USER_NAME:$APM_PROXY_PASSWORD@$APM_PROXY_URL"
-        else
-            APM_PROXY_URL="$APM_PROXY_USER_NAME@$APM_PROXY_URL"
-        fi
-    fi
-    if [ -z "$APM_PROXY_SERVER_PROTOCOL" ]; then
-        APM_PROXY_SERVER_PROTOCOL="http"
-    fi
-    if [ -n "$APM_PROXY_URL" ]; then
-        PROXY_STR="$APM_PROXY_SERVER_PROTOCOL://$APM_PROXY_URL"
-    fi
-    
-}
-
 ReadConfigFromFile() {
     if [ -f $STARTUP_CONF_FILEPATH ]; then
         Log "Found oneagentconf.ini file. Started reading the file for Oneagent startup configurations"
@@ -195,130 +166,121 @@ ReadConfigFromArgs() {
     # Parse command-line arguments
     while [ $# -gt 0 ]; do
         case "$1" in
-            --*)
-                key="${1#--}"
-                value="$2"
+            --*=*)
+                Key_val_pair="${1#--}"
+                Key=$(echo "$Key_val_pair" | cut -d '=' -f 1 | sed 's/[[:space:]]*$//')
+                value=$(echo "$Key_val_pair" | cut -d '=' -f 2- | sed 's/^[[:space:]]*//')
                 if [ -z "$value" ] || [ "$value" = "0" ]; then
-                    Log "Unacceptable value $value for the argument: $key"
-                elif [ "$key" = "BUNDLED" ]; then
+                    Log "Unacceptable value $value for the argument: $Key"
+                elif [ "$Key" = "BUNDLED" ]; then
                     BUNDLED=1
-                elif [ "$key" = "APM_LICENSE_KEY" ]; then
-                    APM_LICENSE_KEY=$value
-                elif [ "$key" = "APM_PROXY_URL" ]; then
-                    APM_PROXY_URL=$value
-                elif [ "$key" = "APM_PROXY_SERVER_NAME" ]; then
-                    APM_PROXY_SERVER_NAME="$value"
-                elif [ "$key" = "APM_PROXY_SERVER_PORT" ]; then
-                    APM_PROXY_SERVER_PORT="$value"
-                elif [ "$key" = "APM_PROXY_USER_NAME" ]; then
-                    APM_PROXY_USER_NAME="$value"
-                elif [ "$key" = "APM_PROXY_PASSWORD" ]; then
-                    APM_PROXY_PASSWORD="$value"
-                elif [ "$key" = "APM_PROXY_SERVER_PROTOCOL" ]; then
-                    APM_PROXY_SERVER_PROTOCOL="$value"
-                elif [ "$key" = "APM_ONEAGENT_PATH" ]; then
-                    if [ -d $value ]; then
-                        APM_ONEAGENT_PATH=$(echo "$value" | sed 's/\/$//')
-                        AGENT_INSTALLATION_PATH="$value/site24x7/apmoneagent"
-                        echo "APM_ONEAGENT_PATH=$AGENT_INSTALLATION_PATH" >> /etc/environment 
-                    else
-                        Log "Path provided as APM_ONEAGENT_PATH not present. Installing agent at default location /opt/Site24x7/apmoneagent"
-                    fi
-                elif [ "$key" = "APM_SERVER_HOST" ]; then
-                    APM_SERVER_HOST=$value
-                elif [ "$key" = "APM_SERVER_PORT" ]; then
-                    APM_SERVER_PORT=$value
-                elif [ "$key" = "APM_SERVER_PROTOCOL" ]; then
-                    if [ "$value" = "true" ]; then
-                        SECURED_PROTOCOL="true"
-                    fi
-                elif [ "$key" = "APM_MONITOR_GROUP" ]; then
-                    APM_MONITOR_GROUP=$value
-                elif [ "$key" = "JAVA_AGENT_DOWNLOAD_PATH" ]; then
+                elif [ "$Key" = "APMINSIGHT_LICENSE_KEY" ]; then
+                    APMINSIGHT_LICENSE_KEY=$value     
+                elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
+                    APMINSIGHT_PROXY_URL=$value
+                # elif [ "$Key" = "APMINSIGHT_ONEAGENT_PATH" ]; then
+                #     if [ -d $value ]; then
+                #         APMINSIGHT_ONEAGENT_PATH=$(echo "$value" | sed 's/\/$//')
+                #         AGENT_INSTALLATION_PATH="$value/site24x7/apmoneagent"
+                #         echo "APMINSIGHT_ONEAGENT_PATH=$AGENT_INSTALLATION_PATH" >> /etc/environment 
+                #     else
+                #         Log "Path provided as APMINSIGHT_ONEAGENT_PATH not present. Installing agent at default location /opt/Site24x7/apmoneagent"
+                #     fi
+                elif [ "$Key" = "APMINSIGHT_HOST" ]; then
+                    APMINSIGHT_HOST=$value
+                elif [ "$Key" = "APMINSIGHT_PORT" ]; then
+                    APMINSIGHT_PORT=$value
+                elif [ "$Key" = "APMINSIGHT_PROTOCOL" ]; then
+                    APMINSIGHT_PROTOCOL=$value
+                elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
+                    APMINSIGHT_MONITOR_GROUP=$value
+                elif [ "$Key" = "AGENT_KEY" ]; then
+                    AGENT_KEY=$value
+                elif [ "$Key" = "JAVA_AGENT_DOWNLOAD_PATH" ]; then
                     JAVA_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$key" = "NODE_AGENT_DOWNLOAD_PATH" ]; then
+                elif [ "$Key" = "NODE_AGENT_DOWNLOAD_PATH" ]; then
                     NODE_MINIFIED_DOWNLOAD_PATH="$value"
-                elif [ "$key" = "PYTHON_AGENT_DOWNLOAD_PATH" ]; then
+                elif [ "$Key" = "PYTHON_AGENT_DOWNLOAD_PATH" ]; then
                     PYTHON_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$key" = "DOTNETCORE_AGENT_DOWNLOAD_PATH" ]; then
+                elif [ "$Key" = "DOTNETCORE_AGENT_DOWNLOAD_PATH" ]; then
                     DOTNETCORE_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$key" = "ONEAGENT_DOWNLOAD_PATH" ]; then
+                elif [ "$Key" = "ONEAGENT_DOWNLOAD_PATH" ]; then
                     ONEAGENT_FILES_DONWLOAD_PATH="$value"
-                elif [ "$key" = "S247DATAEXPORTER_DOWNLOAD_PATH" ]; then
+                elif [ "$Key" = "S247DATAEXPORTER_DOWNLOAD_PATH" ]; then
                     DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH="$value"
-                elif [ "$key" = "JAVA_AGENT_CHECKSUM" ]; then
+                elif [ "$Key" = "JAVA_AGENT_CHECKSUM" ]; then
                     JAVA_AGENT_CHECKSUM="$value"
-                elif [ "$key" = "NODE_AGENT_CHECKSUM" ]; then
+                elif [ "$Key" = "NODE_AGENT_CHECKSUM" ]; then
                     NODE_AGENT_CHECKSUM="$value"
-                elif [ "$key" = "PYTHON_AGENT_CHECKSUM" ]; then
+                elif [ "$Key" = "PYTHON_AGENT_CHECKSUM" ]; then
                     PYTHON_AGENT_CHECKSUM="$value"
-                elif [ "$key" = "DOTNETCORE_AGENT_CHECKSUM" ]; then
+                elif [ "$Key" = "DOTNETCORE_AGENT_CHECKSUM" ]; then
                     DOTNETCORE_AGENT_CHECKSUM="$value"
-                elif [ "$key" = "ONEAGENT_FILES_CHECKSUM" ]; then
+                elif [ "$Key" = "ONEAGENT_FILES_CHECKSUM" ]; then
                     ONEAGENT_FILES_CHECKSUM="$value"
                 else
-                    Log "Invalid argument name : $key. Please provide a valid one"
+                    Log "Invalid argument name : $Key. Please provide a valid one"
                 fi
-                shift 2  # Move to the next key-value pair
+                ;;
+            -upgrade)
+                :
+                ;;
+            -uninstall)
+                :
                 ;;
             *)
-                shift 1
-                Log "Unknown argument: $key"
+                Log "Unknown argument: $Key"
                 ;;
         esac
+        shift 1
     done
-    if [ -z "$APM_LICENSE_KEY" ]; then
-        Log "Unable to find License key from commandline arguments. Please run the apm-one-agent-linux.sh script again providing License key or set License Key in the configuration file located at $AGENT_INSTALLATION_PATH in the format LICENSEKEY=<Your License Key>"
+    if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
+        Log "Unable to find License Key from commandline arguments. Please run the apm-one-agent-linux.sh script again providing License Key or set License Key in the configuration file located at $AGENT_INSTALLATION_PATH in the format APMINSIGHT_LICENSEKEY=<Your License Key>"
     fi
 }
 
 BuildApmHostUrl() {
-    if [ "$APM_SERVER_HOST" != "" ]; then
-        APM_HOST_URL="$APM_SERVER_HOST"
-        if [ "$APM_SERVER_PORT" != "" ]; then
-            APM_HOST_URL="$APM_HOST_URL:"$APM_SERVER_PORT""
+    if [ "$APMINSIGHT_HOST" != "" ]; then
+        APMINSIGHT_HOST_URL="$APMINSIGHT_HOST"
+        if [ "$APMINSIGHT_PORT" != "" ]; then
+            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:"$APMINSIGHT_PORT""
         else
-            APM_HOST_URL="$APM_HOST_URL:443"
+            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:443"
         fi
-        if [ -n "$SECURED_PROTOCOL" ]; then
-            APM_HOST_URL="https://$APM_HOST_URL"
-        else
-            APM_HOST_URL="http://$APM_HOST_URL"
-        fi
+        APMINSIGHT_HOST_URL="$APMINSIGHT_PROTOCOL://$APMINSIGHT_HOST_URL"
     fi
 }
 
 SetProxy() {
-    ConstructProxyUrl
-    if [ -n "$PROXY_STR" ]; then
-        export http_proxy=$PROXY_STR
-        export https_proxy=$PROXY_STR
-        export ftp_proxy=$PROXY_STR
+    if [ -n "$APMINSIGHT_PROXY_URL" ]; then
+        PROXY_STR="$(echo "https://temp-mail.org/en/" | sed 's/:\/\//\n/g' | sed -n '2p')"
+        export http_proxy=$APMINSIGHT_PROXY_URL
+        export https_proxy=$APMINSIGHT_PROXY_URL
+        export ftp_proxy=$APMINSIGHT_PROXY_URL
     fi
 }
 
 ReadDomain() {
-    if [ -z "$APM_LICENSE_KEY" ]; then
+    if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
         return
     fi
-    if echo "$APM_LICENSE_KEY" | grep -q "_"; then
-        DOMAIN="${APM_LICENSE_KEY%%_*}"
-        if [ "$DOMAIN" = "us" ] || [ "$DOMAIN" = "gd" ]; then
-            DOMAIN="com"
+    if echo "$APMINSIGHT_LICENSE_KEY" | grep -q "_"; then
+        APMINSIGHT_DOMAIN="${APMINSIGHT_LICENSE_KEY%%_*}"
+        if [ "$APMINSIGHT_DOMAIN" = "us" ] || [ "$APMINSIGHT_DOMAIN" = "gd" ]; then
+            APMINSIGHT_DOMAIN="com"
         fi
     fi
 }
 
 EncryptLicenseKey() {
-    if [ -n "$APM_LICENSE_KEY" ]; then
-        AGENT_START_TIME=$(echo -n $(date +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
-        AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
-        APM_LICENSE_KEY_ENCRYPTED=$(echo -n "$APM_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$AGENT_ID" | xxd -p -c 256) -base64)
-        if [ -z "$APM_LICENSE_KEY_ENCRYPTED" ]; then
+    if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
+        APMINSIGHT_AGENT_START_TIME=$(echo -n $(date +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
+        APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64)
+        if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
                 Log "Unable to generate the License string. Abandoning the installation process"
                 exit 1
         fi
-        LICENSEKEY="$APM_LICENSE_KEY_ENCRYPTED"
     fi
 }
 
@@ -333,8 +295,8 @@ SetupAgentConfigurations() {
 
 RemoveExistingOneagentFiles() {
     rm -rf "$AGENT_INSTALLATION_PATH/bin/"
-    sed -i '/liboneagentloader.so$/d' /etc/ld.so.preload
-    rm -f /lib/liboneagentloader.so
+    sed -i '/libapminsightoneagentloader.so$/d' /etc/ld.so.preload
+    rm -f /lib/libapminsightoneagentloader.so
 }
 
 #CREATE AGENT FOLDERS IN USER MACHINE AND STORE THE DOWNLOADED AGENT FILES 
@@ -350,15 +312,15 @@ CreateOneAgentFiles() {
 
 CreateApmAgentFiles() {
     rm -rf "$AGENT_INSTALLATION_PATH/lib/"
-    mkdir -p "$AGENT_INSTALLATION_PATH/lib/NODEJS"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/NODE"
     mkdir -p "$AGENT_INSTALLATION_PATH/lib/JAVA"
     mkdir -p "$AGENT_INSTALLATION_PATH/lib/PYTHON"
     mkdir -p "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE"
     mkdir -p "$AGENT_INSTALLATION_PATH/agents"
     mkdir -p "$AGENT_INSTALLATION_PATH/agents/JAVA"
     mkdir -p "$AGENT_INSTALLATION_PATH/agents/JAVA/logs"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODEJS/"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODEJS/logs"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODE/"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODE/logs"
     mkdir -p "$AGENT_INSTALLATION_PATH/agents/PYTHON"
     mkdir -p "$AGENT_INSTALLATION_PATH/agents/PYTHON/logs"
     mkdir -p "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
@@ -375,7 +337,7 @@ DownloadAgentFiles() {
         mkdir -p "$TEMP_FOLDER_PATH"
         cd "$TEMP_FOLDER_PATH"
         wget -nv "$NODE_MINIFIED_DOWNLOAD_PATH"
-        ValidateChecksumAndInstallAgent "apm_insight_agent_nodejs.zip" "$NODE_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/NODEJS"
+        ValidateChecksumAndInstallAgent "apm_insight_agent_nodejs.zip" "$NODE_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/NODE"
 
         wget -nv "$JAVA_AGENT_DOWNLOAD_PATH"
         ValidateChecksumAndInstallAgent "apminsight-javaagent.zip" "$JAVA_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/JAVA"
@@ -384,7 +346,7 @@ DownloadAgentFiles() {
         return
     fi
 
-    unzip "apm_insight_agent_nodejs.zip" -d "$AGENT_INSTALLATION_PATH/lib/NODEJS"
+    unzip "apm_insight_agent_nodejs.zip" -d "$AGENT_INSTALLATION_PATH/lib/NODE"
     unzip "apminsight-javaagent.zip" -d "$AGENT_INSTALLATION_PATH/lib/JAVA"
 
     rm "apm_insight_agent_nodejs.zip"
@@ -409,7 +371,7 @@ ValidateChecksumAndInstallAgent() {
 #INSTALL NODEJS AGENT DEPENDENCIES
 InstallNodeJSDependencies() {
     Log "INSTALLING NODE DEPENDENCIES"
-    NODE_AGENT_PATH="$AGENT_INSTALLATION_PATH/lib/NODEJS/agent_minified"
+    NODE_AGENT_PATH="$AGENT_INSTALLATION_PATH/lib/NODE/agent_minified"
     if [ "$KUBERNETES_ENV" -eq 1 ]; then
         NODE_AGENT_PATH="$AGENT_INSTALLATION_PATH/agent_minified"
     fi
@@ -438,7 +400,7 @@ InstallPythonDependencies() {
     pip install --upgrade --no-index --find-links="$PYTHON_FILE_PATH" apminsight 2>/tmp/python_agent_installation_warnings.log
     PYTHON_AGENT_PATH="$(pip show apminsight | awk '/^Location:/ {print $2}')"
     NEW_PYTHON_PATH="$PYTHON_AGENT_PATH/apminsight/bootstrap:$PYTHON_AGENT_PATH:"
-
+    AGENT_CONF_STR="$AGENT_CONF_STR""NEW_PYTHON_PATH=$NEW_PYTHON_PATH\n"
 }
 
 InstallDotNetCoreAgent() {
@@ -448,7 +410,7 @@ InstallDotNetCoreAgent() {
     Originalchecksumvalue="$(cat "apminsight-dotnetcoreagent-linux.sh.sha256")"
     Downloadfilechecksumvalue="$(sha256sum "apminsight-dotnetcoreagent-linux.sh" | awk -F' ' '{print $1}')"
     if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
-        sudo bash ./apminsight-dotnetcoreagent-linux.sh -Destination "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE" -LicenseKey "$APM_LICENSE_KEY" -OneAgentInstall -OneAgentHomePath "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
+        sudo bash ./apminsight-dotnetcoreagent-linux.sh -Destination "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE" -OneAgentInstall -OneAgentHomePath "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
     else
         Log "Checksum Validation failed for DotnetCore agent installation file"
     fi
@@ -458,14 +420,8 @@ InstallDotNetCoreAgent() {
 #INSTALL S247DATAEXPORTER
 InstallS247DataExporter() {
     Log "INSTALLING S247DATAEXPORTER"
-    EXPORTER_INSTALLATION_ARGUMENTS="-license.key "$APM_LICENSE_KEY""
-    if [ "$APM_PROXY_URL" != "" ]; then
-        EXPORTER_INSTALLATION_ARGUMENTS="$EXPORTER_INSTALLATION_ARGUMENTS -behind.proxy true -proxy.url $PROXY_STR"
-    fi
-    if [ "$APM_HOST_URL" != "" ]; then
-        EXPORTER_INSTALLATION_ARGUMENTS="$EXPORTER_INSTALLATION_ARGUMENTS -apm.host $APM_HOST_URL"
-    fi
-    DOWNLOAD_PATH="https://staticdownloads.site24x7.""$DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
+    EXPORTER_INSTALLATION_ARGUMENTS="-license.key "$APMINSIGHT_LICENSE_KEY" -apminsight.oneagent.conf.filepath "$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini""
+    DOWNLOAD_PATH="https://staticdownloads.site24x7.""$APMINSIGHT_DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
     if [ "$BUNDLED" -eq 0 ] && [ "$KUBERNETES_ENV" -eq 0 ]; then
         cd "$TEMP_FOLDER_PATH"
         wget -nv -O InstallDataExporter.sh "$DOWNLOAD_PATH"
@@ -490,7 +446,7 @@ SetupOneagentFiles() {
     mkdir -p "$AGENT_INSTALLATION_PATH/bin"
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
-    wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
+    #wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
     ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
@@ -498,9 +454,13 @@ SetupOneagentFiles() {
 #GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
 GiveFilePermissions() {
     Log "GIVING FILE PERMISSIONS"
-    chmod 777 -R "$APM_ONEAGENT_PATH"
+    chown -R apminsight-oneagent-user "$AGENT_INSTALLATION_PATH"
+    chmod 777 -R "$APMINSIGHT_ONEAGENT_PATH"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/bin"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
+    chmod 777 -R "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
+    chmod 644 "$PRELOAD_FILE_PATH"
+    chmod 644 "/lib/libapminsightoneagentloader.so"
 }
 
 SetupApmAgents() {
@@ -511,18 +471,17 @@ SetupApmAgents() {
         return
     fi
     DownloadAgentFiles
-    InstallNodeJSDependencies
-    InstallPythonDependencies
-    InstallDotNetCoreAgent
-    InstallS247DataExporter
+    #InstallNodeJSDependencies
+    #InstallPythonDependencies
+    #InstallDotNetCoreAgent
+    #InstallS247DataExporter
     LoadAgentForExistingJavaProcesses
 }
 
 #CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
 LoadAgentForExistingJavaProcesses() {
-    echo "CURRENT PID: $$"
     Log "LOADING AGENT INTO EXISTING JAVA PROCESSES"
-    if [ "$APM_LICENSE_KEY" = "" ]; then
+    if [ "$APMINSIGHT_LICENSEKEY" = "" ]; then
         Log "NO LICENSE KEY FOUND, LOADING AGENT TO EXISTING JAVA PROCESSES WILL BE SKIPPED"
         return
     fi
@@ -530,69 +489,54 @@ LoadAgentForExistingJavaProcesses() {
     pids=$(ps -ef | grep -e 'java' -e 'tomcat' | grep -v 'grep' | awk '{print $2}')
 
     # Iterate over each PID and run the command with java -jar apminsight-javaagent.jar -start <pid>
-    DYNAMIC_LOAD_ARGUMENTS="-lk "$APM_LICENSE_KEY""
-    if [ "$APM_PROXY_URL" != "" ]; then
-        DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -ap $APM_PROXY_URL"
+    DYNAMIC_LOAD_ARGUMENTS="-lk "$APMINSIGHT_LICENSE_KEY""
+    if [ "$APMINSIGHT_PROXY_URL" != "" ]; then
+        DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -ap $PROXY_STR"
     fi
-    if [ "$APM_HOST_URL" != "" ]; then
-        DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -aph $APM_HOST_URL"
+    if [ "$APMINSIGHT_HOST_URL" != "" ]; then
+        DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -aph $APMINSIGHT_HOST_URL"
     fi
     for pid in $pids; do
     Log "JAVA PROCESS DETECTED: $pid"
-        ps -p $$ -o pid,vsz=MEMORY -o user,group=GROUP -o comm,args=ARGS
-        #eval "java -jar $AGENT_INSTALLATION_PATH/lib/JAVA/apminsight-javaagent.jar -start "$pid" "$DYNAMIC_LOAD_ARGUMENTS""
+        eval "java -jar $AGENT_INSTALLATION_PATH/lib/JAVA/apminsight-javaagent.jar -start "$pid" "$DYNAMIC_LOAD_ARGUMENTS""
     done
 }
 
 WriteToAgentConfFile() {
 	AGENT_CONF_STR="[ApminsightOneAgent]\n"
 
-	if [ -n "$APM_PROXY_URL" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_PROXY_URL=$APM_PROXY_URL\n"
+	if [ -n "$APMINSIGHT_PROXY_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROXY_URL=$APMINSIGHT_PROXY_URL\n"
     fi
-    if [ -n "$APM_PROXY_SERVER_NAME" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_PROXY_SERVER_NAME=$APM_PROXY_SERVER_NAME\n"
+    if [ -n "$APMINSIGHT_HOST" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
     fi
-    if [ -n "$APM_PROXY_SERVER_PORT" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_PROXY_SERVER_PORT=$APM_PROXY_SERVER_PORT\n"
+    if [ -n "$APMINSIGHT_PORT" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PORT=$APMINSIGHT_PORT\n"
     fi
-    if [ -n "$APM_PROXY_SERVER_PROTOCOL" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_PROXY_SERVER_PROTOCOL=$APM_PROXY_SERVER_PROTOCOL\n"
+    if [ -n "$APMINSIGHT_PROTOCOL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROTOCOL=$APMINSIGHT_PROTOCOL\n"
     fi
-    if [ -n "$APM_PROXY_USER_NAME" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_PROXY_USER_NAME=$APM_PROXY_USER_NAME\n"
-    fi
-    if [ -n "$APM_PROXY_PASSWORD" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_PROXY_PASSWORD=$APM_PROXY_PASSWORD\n"
-    fi
-    if [ -n "$APM_SERVER_HOST" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_SERVER_HOST=$APM_SERVER_HOST\n"
-    fi
-    if [ -n "$APM_SERVER_PORT" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_SERVER_PORT=$APM_SERVER_PORT\n"
-    fi
-    if [ -n "$APM_SERVER_PROTOCOL" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_SERVER_PROTOCOL=$APM_SERVER_PROTOCOL\n"
-    fi
-    if [ -n "$APM_HOST_URL" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_HOST_URL=$APM_HOST_URL\n"
+    if [ -n "$APMINSIGHT_HOST_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST_URL=$APMINSIGHT_HOST_URL\n"
     fi  
-    if [ -n "$APM_MONITOR_GROUP" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APM_MONITOR_GROUP=$APM_MONITOR_GROUP\n"
+    if [ -n "$APMINSIGHT_MONITOR_GROUP" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_MONITOR_GROUP=$APMINSIGHT_MONITOR_GROUP\n"
     fi
     if [ -n "$PYTHON_AGENT_PATH" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""NEW_PYTHON_PATH=$NEW_PYTHON_PATH\n"
     fi
-    if [ -n "$LICENSEKEY" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""LICENSEKEY=$LICENSEKEY\n"
+    if [ -n "$APMINSIGHT_LICENSEKEY" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_LICENSEKEY=$APMINSIGHT_LICENSEKEY\n"
     fi
-    if [ -n "$AGENT_START_TIME" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""AGENT_START_TIME=$AGENT_START_TIME\n"
+    if [ -n "$APMINSIGHT_AGENT_START_TIME" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_AGENT_START_TIME=$APMINSIGHT_AGENT_START_TIME\n"
     fi
-    if [ -n "$AGENT_ID" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""AGENT_ID=$AGENT_ID\n"
+    if [ -n "$APMINSIGHT_AGENT_ID" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_AGENT_ID=$APMINSIGHT_AGENT_ID\n"
     fi
-    AGENT_CONF_STR="$AGENT_CONF_STR""DOMAIN=$DOMAIN\n"
+    AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_DOMAIN=$APMINSIGHT_DOMAIN\n"
+    AGENT_CONF_STR="$AGENT_CONF_STR""AGENT_KEY=$AGENT_KEY\n"
     conf_filepath="$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini"
     echo "$AGENT_CONF_STR" > "$conf_filepath"
     if [ -f "$conf_filepath" ]; then
@@ -606,10 +550,8 @@ WriteToAgentConfFile() {
 SetPreload() {
     Log "SETTING PRELOAD"
     if [ -f "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" ]; then
-        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/liboneagentloader.so
-        echo "/lib/liboneagentloader.so" >> "$PRELOAD_FILE_PATH"
-        chmod 644 "$PRELOAD_FILE_PATH"
-        chmod 644 "/lib/liboneagentloader.so"
+        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libapminsightoneagentloader.so
+        echo "/lib/libapminsightoneagentloader.so" >> "$PRELOAD_FILE_PATH"
     else
         Log "No file found at "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so""
     fi
@@ -622,19 +564,21 @@ RemoveInstallationFiles() {
 
 MoveInstallationFiles() {
     if [ "$ONEAGENT_OPERATION" = "install" ]; then
-        # mv "$AGENT_STARTUP_LOGFILE_PATH" "$AGENT_INSTALLATION_PATH/logs"
+        mv "$AGENT_STARTUP_LOGFILE_PATH" "$AGENT_INSTALLATION_PATH/logs"
         mv "$(dirname "$(readlink -f "$0")")"/apm-one-agent-linux.sh "$AGENT_INSTALLATION_PATH/bin/"
     fi
 }
 
 CompareAgentVersions() {
     if [ "$EXISTING_AGENT_VERSION_NUM" -lt "$CURRENT_AGENT_VERSION_NUM" ]; then
-        ReadExistingOneagentPath
-        AGENT_STARTUP_LOGFILE_PATH="$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log"
-        if [ -f "$EXISTING_ONEAGENTPATH/conf/oneagentconf.ini" ]; then
-            STARTUP_CONF_FILEPATH="$EXISTING_ONEAGENTPATH/conf/oneagentconf.ini"
+        # ReadExistingOneagentPath
+        # if [ -f "$EXISTING_ONEAGENTPATH/conf/oneagentconf.ini" ]; then
+        #     STARTUP_CONF_FILEPATH="$EXISTING_ONEAGENTPATH/conf/oneagentconf.ini"
+        # fi
+        # AGENT_INSTALLATION_PATH="$EXISTING_ONEAGENTPATH"
+        if [ -f "$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini" ]; then
+            STARTUP_CONF_FILEPATH="$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini"
         fi
-        AGENT_INSTALLATION_PATH="$EXISTING_ONEAGENTPATH"
         if [ "$ONEAGENT_OPERATION" = "install" ]; then
             echo -n "An outdated version of oneagent exists. Would you like to install the new version?\nPlease enter y[es] or n[o]:"
             read upgrade
@@ -710,6 +654,9 @@ FindKeyValPairInFile() {
 ReadExistingOneagentPath() {
     EXISTING_ONEAGENTPATH="$AGENT_INSTALLATION_PATH"
     FindKeyValPairInFile "/etc/environment" "ONEAGENTPATH"
+    if [ -n "$ONEAGENTPATH" ]; then
+        EXISTING_ONEAGENTPATH="$ONEAGENTPATH"
+    fi
 }
 
 CheckIfOneagentExists() {
@@ -725,12 +672,16 @@ CheckAgentInstallation() {
             Log "Oneagent is not installed. Aborting uninstallation"
             exit 1
         fi
-        ReadExistingOneagentPath
-        if ! [ -f "$EXISTING_ONEAGENTPATH/bin/uninstall.sh" ]; then
-            Log "Cannot find uninstall.sh file at Oneagent installed location: $EXISTING_ONEAGENTPATH/bin/uninstall.sh"
+        # ReadExistingOneagentPath
+        # if ! [ -f "$EXISTING_ONEAGENTPATH/bin/uninstall.sh" ]; then
+        #     Log "Cannot find uninstall.sh file at Oneagent installed location: $EXISTING_ONEAGENTPATH/bin/uninstall.sh"
+        #     exit 1
+        # fi
+        # sh "$EXISTING_ONEAGENTPATH/bin/uninstall.sh"
+        if ! [ -f "$AGENT_INSTALLATION_PATH/bin/uninstall.sh" ]; then
+            Log "Cannot find uninstall.sh file at Oneagent installed location: $AGENT_INSTALLATION_PATH/bin/uninstall.sh"
             exit 1
         fi
-        sh "$EXISTING_ONEAGENTPATH/bin/uninstall.sh"
         exit 0
 
     elif [ "$1" = "-upgrade" ]; then
@@ -746,19 +697,60 @@ CheckAgentInstallation() {
     checkVersion
 }
 
+CheckUser() {
+    if !(id "apminsight-oneagent-user" >/dev/null 2>&1); then
+        Log "User "apminsight-oneagent-user" does not exist."
+        return 0
+    fi
+    return 1
+}
+
+CheckAndGrantSudoPermissionForApmUser() {
+    if groups apminsight-oneagent-user | grep -q "\bsudo\b"; then
+        Log "User 'apminsight-oneagent-user' already has sudo privileges."
+    else
+        sudo usermod -aG sudo apminsight-oneagent-user
+    fi
+}
+CheckAndCreateOneagentUser() {
+    if id apminsight-oneagent-user >/dev/null 2>&1; then
+        Log "User 'apminsight-oneagent-user' already exists."
+    else
+        useradd --system --no-create-home --no-user-group apminsight-oneagent-user
+        if ! CheckUser; then
+            Log "Aborting Apminsight Oneagent Installation"
+            exit 1
+        fi
+    fi
+    CheckAndGrantSudoPermissionForApmUser
+}
+
+RegisterOneagentService() {
+    Log "Registering Apminsight-Oneagent-Linux service"
+    rm -f "/etc/systemd/system/apminsight-oneagent-linux.service"
+    if [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" ]; then
+        Log "Cannot find Oneagent service binary. Skipping the service start"
+        exit 1
+    fi
+    mv "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl restart apminsight-oneagent-linux.service
+}
+
 main() {
-    # CheckArgs $@
-    # CheckAgentInstallation $@
+    CheckArgs $@
+    CheckAgentInstallation $@
     RedirectLogs
-    # SetupPreInstallationChecks
-    # SetupAgentConfigurations "$@"
-    # SetupApmAgents
-    CreateOneAgentFiles
+    CheckAndCreateOneagentUser
+    SetupPreInstallationChecks
+    SetupAgentConfigurations "$@"
+    SetupApmAgents
+    WriteToAgentConfFile
+    RegisterOneagentVersion
+    SetPreload
     GiveFilePermissions
-    # WriteToAgentConfFile
-    # RegisterOneagentVersion
-    # SetPreload
+    RegisterOneagentService
     MoveInstallationFiles
-    # RemoveInstallationFiles
+    RemoveInstallationFiles
     }
 main "$@"
