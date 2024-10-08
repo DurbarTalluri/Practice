@@ -1,505 +1,756 @@
-#!/bin/bash
+#!/bin/sh
 
-# Define variables
-Destination=""
-InstallType="global"
-LicenseKey=""
-AppName=""
-ForceUpdate=false
-Help=false
-IgnoreFolderPermission=false
-IsBehindProxy=false
-ProxyHost=""
-ProxyPort=0
-ProxyUser=""
-ProxyPassword=""
-DisableAppFilter=false
-OneAgentInstall=false
-OneAgentHomePath=""
-OfflineInstall=false
-EncryptedString=""
-InitVector=""
-SaltKey=""
+NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
+JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
+JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
+PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
+PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
+DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
+DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
+DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
+ONEAGENT_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm-one-agent-linux-files.zip"
+ONEAGENT_FILES_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm-one-agent-linux-files.zip.sha256"
 
+APMINSIGHT_ONEAGENT_PATH="/opt"
+AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
+PRELOAD_FILE_PATH="/etc/ld.so.preload"
+AGENT_STARTUP_LOGFILE_PATH="apm-one-agent-installation.log"
+STARTUP_CONF_FILEPATH="./oneagentconf.ini"
 
-AgentVersion="6.7.0"
-SupportedVersions=("netcoreapp2.0" "netcoreapp2.1" "netcoreapp2.2" "netcoreapp3.0" "netcoreapp3.1" "net5.0" "net6.0" "net7.0" "net8.0")
-Platforms=("x64" "x86")
+KUBERNETES_ENV=0
+BUNDLED=0
+APMINSIGHT_LICENSEKEY=""
+APMINSIGHT_LICENSE_KEY=""
+CURRENT_DIRECTORY=$(pwd)
+TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
+AGENT_CONF_STR=""
+APMINSIGHT_HOST=""
+APMINSIGHT_PORT=""
+APMINSIGHT_HOST_URL=""
+APMINSIGHT_PROXY_URL=""
+PROXY_STR=""
+APMINSIGHT_DOMAIN="com"
+PYTHON_AGENT_PATH=""
+APMINSIGHT_AGENT_START_TIME=""
+APMINSIGHT_AGENT_ID=""
 
-agentZipGLibcUrl="https://https://build.zohocorp.com/zoho/apm_insight_dotnet_agent/webhost/netcore_linux_branch/Sep_03_2024/apminsight_dotnet_agent/site24x7/apminsight-dotnetcoreagent/linux/glibc/apminsight-dotnetcoreagent-linux.zip"
-agentZipMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/linux/musl/apminsight-dotnetcoreagent-linux.zip"
-checksumGLibcUrl="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/apminsight-dotnetcoreagent-linux.zip.sha256"
-checksumMuslUrl="https://staticdownloads.site24x7.com/apminsight/checksum/linux/musl/apminsight-dotnetcoreagent-linux.zip.sha256"
-agentZipName="apminsight-dotnetcoreagent-linux.zip"
+OS_ARCH=$(uname -m)
+BOOLEAN_TRUE="true"
+BOOLEAN_FALSE="false"
+MATCH_PHRASE_64BIT="64"
+MATCH_PHRASE1_ARM="arm"
+MATCH_PHRASE2_ARM="aarch"
+IS_ARM=$BOOLEAN_FALSE
+IS_NOTARM=$BOOLEAN_FALSE
+IS_32BIT=$BOOLEAN_FALSE
+IS_64BIT=$BOOLEAN_FALSE
+ARCH_BASED_DOWNLOAD_PATH_EXTENSION=""
+APMSIGHT_PROTOCOL="http"
+ONEAGENT_VERSION="1.0.0"
+ONEAGENT_OPERATION="install"
 
-IsUpdateFound=false
+displayHelp() {
+    echo "Usage: $0 [option] [arguments]\n \n Options:\n"
+    echo "  --APMINSIGHT_LICENSE_KEY             To configure the site24x7 License key"
+    echo "  --APMINSIGHT_PROXY_URL               To configure Proxy Url if using, Format: protocol://user:password@host:port or protocol://user@host:port or protocol://host:port"
+    #echo "  --APMINSIGHT_ONEAGENT_PATH           To configure Custom path for Oneagent related files"
+    echo "  --APMINSIGHT_MONITOR_GROUP           To configure Agent monitor groups"
+}
 
-function InstallAgent() {
-    
-        agentPath="$Destination/Site24x7DotNetCoreAgent"
-        PSScriptRoot=$(dirname "$(realpath "$0")")
+CheckArgs() {
+    if [ "$*" = "--help" ]; then
+        displayHelp
+        exit 1
+    fi
+}
 
-        if [ "$OfflineInstall" = true ]; then
-            if [ ! -d "$PSScriptRoot/Agent" ]; then
-                Print "The Script is an Online Installer; remove the '-OfflineInstall' flag and try again."
-                exit 1
-            fi
-        else
-            DownloadAndExtractAgent
-        fi
+RedirectLogs() {
+    # if [ -n "$EXISTING_ONEAGENTPATH" ] && [ -f "$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log" ]; then
+    #     AGENT_STARTUP_LOGFILE_PATH="$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log"
+    if [ -f "$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log" ]; then
+        AGENT_STARTUP_LOGFILE_PATH="$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log"
+    elif [ -f "$AGENT_INSTALLATION_PATH/apm-one-agent-installation.log" ]; then
+        AGENT_STARTUP_LOGFILE_PATH="$AGENT_INSTALLATION_PATH/apm-one-agent-installation.log"
+    fi
+    exec >>"$AGENT_STARTUP_LOGFILE_PATH" 2>&1
+}
 
-        if [ -f "$agentPath/version.info" ]; then
-            installedAgentVersionString=$(cat "$agentPath/version.info")
-            currentVersionNumber=${installedAgentVersionString//./}
-            newVersionNumber=${AgentVersion//./}
-            
-            if [ "$currentVersionNumber" -lt "$newVersionNumber" ]; then
-                IsUpdateFound=true
-                userInput="Y"
-                if [ "$ForceUpdate" = false ]; then
-                    read -p "APM Insight .NET core agent is already installed in the given location. Currently installed agent version is $installedAgentVersionString. Do you want to upgrade to $AgentVersion [Y/N]?" userInput
-                fi
-                
-                if [[ "$userInput" =~ ^[Nn]$ ]]; then
-                    Print "Setting the agent environment with the existing version $installedAgentVersionString."
-                    SetEnvironmentVariables "$agentPath"
-                elif [[ "$userInput" =~ ^[Yy]$ ]]; then
-                    Print "Upgrading the agent to the version $AgentVersion."
-                    CopyFiles "$agentPath"
-					rm -rf dotnet_core_linux
+Log() {
+    echo $(date +"%F %T.%N") " $1\n"
+}
+
+CheckUser() {
+    if [ "$(id -u)" -ne 0 ]; then
+        Log "OneAgent installer script is run without root privilege. Please run the script apm-one-agent-linux.sh with root privilege"
+        exit 1
+    fi
+}
+CheckBit() {
+	Log "Action: Checking if Operating System is 32 or 64 bit"
+
+	if echo "${OS_ARCH}" | grep -i -q "${MATCH_PHRASE_64BIT}"; then
+		IS_64BIT=$BOOLEAN_TRUE
+		Log "Info: Detected as 64bit"
+	else
+		IS_32BIT=$BOOLEAN_TRUE
+		Log "Info: Detected as 32bit"
+	fi
+}
+
+CheckARM() {
+	Log "Action: Checking if ARM achitecture"
+
+	if echo "${OS_ARCH}" | grep -i -q "${MATCH_PHRASE1_ARM}"; then
+		IS_ARM=$BOOLEAN_TRUE
+		Log "Info: Detected as ARM"
+	elif echo "${OS_ARCH}" | grep -i -q "${MATCH_PHRASE2_ARM}"; then
+		IS_ARM=$BOOLEAN_TRUE
+		Log "Info: Detected as ARM"
+	else
+		IS_NOTARM=$BOOLEAN_TRUE
+		Log "Info: Detected as not ARM"
+	fi
+}
+
+SetArchBasedDownloadPathExtension() {
+    if [ "$IS_NOTARM" = "$BOOLEAN_TRUE" ] && [ "$IS_32BIT" = "$BOOLEAN_TRUE" ]; then
+		ARCH_BASED_DOWNLOAD_PATH_EXTENSION="386"
+	elif [ "$IS_NOTARM" = "$BOOLEAN_TRUE" ] && [ "$IS_64BIT" = "$BOOLEAN_TRUE" ]; then
+		ARCH_BASED_DOWNLOAD_PATH_EXTENSION="amd64"
+	elif [ "$IS_ARM" = "$BOOLEAN_TRUE" ] && [ "$IS_32BIT" = "$BOOLEAN_TRUE" ]; then
+		ARCH_BASED_DOWNLOAD_PATH_EXTENSION="arm"
+	elif [ "$IS_ARM" = "$BOOLEAN_TRUE" ] && [ "$IS_64BIT" = "$BOOLEAN_TRUE" ]; then
+		ARCH_BASED_DOWNLOAD_PATH_EXTENSION="arm64"
+	else
+		Log "Info: $OS_ARCH not supported in this version"
+    fi
+}
+
+#DETECT IF KUBERNETES ENVIRONMENT
+DetectKubernetes() {
+    Log "DETECTING KUBERNETES ENVIRONMENT"
+    if [ -n "${KUBERNETES_SERVICE_HOST}" ]; then
+        KUBERNETES_ENV=1
+        Log "KUBERNETES ENVIRONMENT DETECTED"
+    fi
+}
+
+SetupPreInstallationChecks() {
+    CheckUser
+    CheckBit
+    CheckARM
+    SetArchBasedDownloadPathExtension
+    DetectKubernetes
+}
+
+ReadConfigFromFile() {
+    if [ -f $STARTUP_CONF_FILEPATH ]; then
+        Log "Found oneagentconf.ini file. Started reading the file for Oneagent startup configurations"
+        while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+                *=*)
+                    key=$(echo "$line" | cut -d '=' -f 1 | sed 's/[[:space:]]*$//')
+                    value=$(echo "$line" | cut -d '=' -f 2- | sed 's/^[[:space:]]*//')
+                    if [ -n "$key" ] && [ -n "$value" ] && [ "$value" != "0" ]; then
+                        eval $key=\"$value\"
+                    fi
+                    ;;
+            esac
+        done < "$STARTUP_CONF_FILEPATH"
+    fi
+}
+
+ReadConfigFromArgs() {
+    Log "READING CONFIG INFO FROM COMMAND-LINE ARGUMENTS" 
+    # Parse command-line arguments
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --*=*)
+                Key_val_pair="${1#--}"
+                Key=$(echo "$Key_val_pair" | cut -d '=' -f 1 | sed 's/[[:space:]]*$//')
+                value=$(echo "$Key_val_pair" | cut -d '=' -f 2- | sed 's/^[[:space:]]*//')
+                if [ -z "$value" ] || [ "$value" = "0" ]; then
+                    Log "Unacceptable value $value for the argument: $Key"
+                elif [ "$Key" = "BUNDLED" ]; then
+                    BUNDLED=1
+                elif [ "$Key" = "APMINSIGHT_LICENSE_KEY" ]; then
+                    APMINSIGHT_LICENSE_KEY=$value     
+                elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
+                    APMINSIGHT_PROXY_URL=$value
+                # elif [ "$Key" = "APMINSIGHT_ONEAGENT_PATH" ]; then
+                #     if [ -d $value ]; then
+                #         APMINSIGHT_ONEAGENT_PATH=$(echo "$value" | sed 's/\/$//')
+                #         AGENT_INSTALLATION_PATH="$value/site24x7/apmoneagent"
+                #         echo "APMINSIGHT_ONEAGENT_PATH=$AGENT_INSTALLATION_PATH" >> /etc/environment 
+                #     else
+                #         Log "Path provided as APMINSIGHT_ONEAGENT_PATH not present. Installing agent at default location /opt/Site24x7/apmoneagent"
+                #     fi
+                elif [ "$Key" = "APMINSIGHT_HOST" ]; then
+                    APMINSIGHT_HOST=$value
+                elif [ "$Key" = "APMINSIGHT_PORT" ]; then
+                    APMINSIGHT_PORT=$value
+                elif [ "$Key" = "APMINSIGHT_PROTOCOL" ]; then
+                    APMINSIGHT_PROTOCOL=$value
+                elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
+                    APMINSIGHT_MONITOR_GROUP=$value
+                elif [ "$Key" = "AGENT_KEY" ]; then
+                    AGENT_KEY=$value
+                elif [ "$Key" = "JAVA_AGENT_DOWNLOAD_PATH" ]; then
+                    JAVA_AGENT_DOWNLOAD_PATH="$value"
+                elif [ "$Key" = "NODE_AGENT_DOWNLOAD_PATH" ]; then
+                    NODE_MINIFIED_DOWNLOAD_PATH="$value"
+                elif [ "$Key" = "PYTHON_AGENT_DOWNLOAD_PATH" ]; then
+                    PYTHON_AGENT_DOWNLOAD_PATH="$value"
+                elif [ "$Key" = "DOTNETCORE_AGENT_DOWNLOAD_PATH" ]; then
+                    DOTNETCORE_AGENT_DOWNLOAD_PATH="$value"
+                elif [ "$Key" = "ONEAGENT_DOWNLOAD_PATH" ]; then
+                    ONEAGENT_FILES_DONWLOAD_PATH="$value"
+                elif [ "$Key" = "S247DATAEXPORTER_DOWNLOAD_PATH" ]; then
+                    DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH="$value"
+                elif [ "$Key" = "JAVA_AGENT_CHECKSUM" ]; then
+                    JAVA_AGENT_CHECKSUM="$value"
+                elif [ "$Key" = "NODE_AGENT_CHECKSUM" ]; then
+                    NODE_AGENT_CHECKSUM="$value"
+                elif [ "$Key" = "PYTHON_AGENT_CHECKSUM" ]; then
+                    PYTHON_AGENT_CHECKSUM="$value"
+                elif [ "$Key" = "DOTNETCORE_AGENT_CHECKSUM" ]; then
+                    DOTNETCORE_AGENT_CHECKSUM="$value"
+                elif [ "$Key" = "ONEAGENT_FILES_CHECKSUM" ]; then
+                    ONEAGENT_FILES_CHECKSUM="$value"
                 else
-                    Print "Enter valid input."
+                    Log "Invalid argument name : $Key. Please provide a valid one"
                 fi
-                Print "The APM Insight .NET Core agent version $AgentVersion is set up successfully."
-            elif [ "$currentVersionNumber" -eq "$newVersionNumber" ]; then
-                Print "Same version of agent is found. Setting the agent environment for the version $installedAgentVersionString."
-                SetEnvironmentVariables "$agentPath"
-                Print "The APM Insight .NET Core agent version $AgentVersion is set up successfully."
-            else
-                Print "Higher version of agent is found. Upgrade will not be proceeded."
-            fi
+                ;;
+            -upgrade)
+                :
+                ;;
+            -uninstall)
+                :
+                ;;
+            *)
+                Log "Unknown argument: $Key"
+                ;;
+        esac
+        shift 1
+    done
+    if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
+        Log "Unable to find License Key from commandline arguments. Please run the apm-one-agent-linux.sh script again providing License Key or set License Key in the configuration file located at $AGENT_INSTALLATION_PATH in the format APMINSIGHT_LICENSEKEY=<Your License Key>"
+    fi
+}
+
+BuildApmHostUrl() {
+    if [ "$APMINSIGHT_HOST" != "" ]; then
+        APMINSIGHT_HOST_URL="$APMINSIGHT_HOST"
+        if [ "$APMINSIGHT_PORT" != "" ]; then
+            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:"$APMINSIGHT_PORT""
         else
-            Print "Setting up the APM Insight .NET Core agent version $AgentVersion."
-            CopyFiles "$agentPath"
-            if [ "$OfflineInstall" = false ]; then
-                rm -rf dotnet_core_linux
-            fi
-            Print "The APM Insight .NET Core agent version $AgentVersion is set up successfully."
-            Print "Kindly do the below steps to finish the configuration: "
-            Print "1)Run 'source /etc/environment' \n2)Start your .NET Application \n3)To customize your Monitor name , refer: https://www.site24x7.com/help/apm/dotnet-agent/install-dot-net-core-agent.html \n"
-            Print "If your application is Self-Contained, please refer to: https://www.site24x7.com/help/apm/dotnet-agent/agent-loader-api.html"
-            Print "To Uninstall the Agent, run $agentPath/UninstallAgent.sh ."
+            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:443"
         fi
+        APMINSIGHT_HOST_URL="$APMINSIGHT_PROTOCOL://$APMINSIGHT_HOST_URL"
+    fi
 }
 
-function DownloadAndExtractAgent() {
-    # Determine the system's libc implementation and set URLs
-    if ldd --version 2>&1 | grep -q 'GLIBC'; then
-        echo "System uses glibc"
-        agentUrl="$agentZipGLibcUrl"
-        checksumUrl="$checksumGLibcUrl"
+SetProxy() {
+    if [ -n "$APMINSIGHT_PROXY_URL" ]; then
+        PROXY_STR="$(echo "https://temp-mail.org/en/" | sed 's/:\/\//\n/g' | sed -n '2p')"
+        export http_proxy=$APMINSIGHT_PROXY_URL
+        export https_proxy=$APMINSIGHT_PROXY_URL
+        export ftp_proxy=$APMINSIGHT_PROXY_URL
+    fi
+}
+
+ReadDomain() {
+    if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
+        return
+    fi
+    if echo "$APMINSIGHT_LICENSE_KEY" | grep -q "_"; then
+        APMINSIGHT_DOMAIN="${APMINSIGHT_LICENSE_KEY%%_*}"
+        if [ "$APMINSIGHT_DOMAIN" = "us" ] || [ "$APMINSIGHT_DOMAIN" = "gd" ]; then
+            APMINSIGHT_DOMAIN="com"
+        fi
+    fi
+}
+
+EncryptLicenseKey() {
+    if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
+        APMINSIGHT_AGENT_START_TIME=$(echo -n $(date +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
+        APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64)
+        if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
+                Log "Unable to generate the License string. Abandoning the installation process"
+                exit 1
+        fi
+    fi
+}
+
+SetupAgentConfigurations() {
+    ReadConfigFromFile
+    ReadConfigFromArgs "$@"
+    BuildApmHostUrl
+    SetProxy
+    ReadDomain
+    EncryptLicenseKey
+}
+
+RemoveExistingOneagentFiles() {
+    rm -rf "$AGENT_INSTALLATION_PATH/bin/"
+    sed -i '/libapminsightoneagentloader.so$/d' /etc/ld.so.preload
+    rm -f /lib/libapminsightoneagentloader.so
+}
+
+#CREATE AGENT FOLDERS IN USER MACHINE AND STORE THE DOWNLOADED AGENT FILES 
+CreateOneAgentFiles() {
+    Log "CREATING AGENT FILES"
+    mkdir -p "$AGENT_INSTALLATION_PATH"
+    mkdir -p "$AGENT_INSTALLATION_PATH/conf"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib"
+    mkdir -p "$AGENT_INSTALLATION_PATH/bin"
+    mkdir -p "$AGENT_INSTALLATION_PATH/logs"
+    touch "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
+}
+
+CreateApmAgentFiles() {
+    rm -rf "$AGENT_INSTALLATION_PATH/lib/"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/NODE"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/JAVA"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/PYTHON"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/JAVA"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/JAVA/logs"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODE/"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODE/logs"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/PYTHON"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/PYTHON/logs"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE/logs"
+}
+
+DownloadAgentFiles() {
+    if [ "$KUBERNETES_ENV" -eq 1 ]; then
+        return
+
+    elif [ "$BUNDLED" -eq 0 ]; then
+        CreateApmAgentFiles
+        Log "DOWNLOADING AGENT FILES"
+        mkdir -p "$TEMP_FOLDER_PATH"
+        cd "$TEMP_FOLDER_PATH"
+        wget -nv "$NODE_MINIFIED_DOWNLOAD_PATH"
+        ValidateChecksumAndInstallAgent "apm_insight_agent_nodejs.zip" "$NODE_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/NODE"
+
+        wget -nv "$JAVA_AGENT_DOWNLOAD_PATH"
+        ValidateChecksumAndInstallAgent "apminsight-javaagent.zip" "$JAVA_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/JAVA"
+        
+        cd "$CURRENT_DIRECTORY"
+        return
+    fi
+
+    unzip "apm_insight_agent_nodejs.zip" -d "$AGENT_INSTALLATION_PATH/lib/NODE"
+    unzip "apminsight-javaagent.zip" -d "$AGENT_INSTALLATION_PATH/lib/JAVA"
+
+    rm "apm_insight_agent_nodejs.zip"
+    rm "apminsight-javaagent.zip"
+}
+
+#CHECKSUM VALIDATION
+ValidateChecksumAndInstallAgent() {
+    Log "Checksum validation for the file $1"
+    file="$1"
+    checksumVerificationLink="$2"
+    destinationpath="$3"
+    checksumfilename="$file-checksum"
+    wget -nv -O "$checksumfilename" $checksumVerificationLink
+    Originalchecksumvalue="$(cat "$checksumfilename")"
+    Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
+    if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
+        unzip "$file" -d "$destinationpath"
+    fi
+}
+
+#INSTALL NODEJS AGENT DEPENDENCIES
+InstallNodeJSDependencies() {
+    Log "INSTALLING NODE DEPENDENCIES"
+    NODE_AGENT_PATH="$AGENT_INSTALLATION_PATH/lib/NODE/agent_minified"
+    if [ "$KUBERNETES_ENV" -eq 1 ]; then
+        NODE_AGENT_PATH="$AGENT_INSTALLATION_PATH/agent_minified"
+    fi
+    cd "$NODE_AGENT_PATH"
+    npm install
+    cd $CURRENT_DIRECTORY
+}
+
+#INSTALL PYTHON AGENT DEPENDENCIES
+InstallPythonDependencies() {
+    Log "DOWNLOADING PYTHON AGENT PACKAGE"
+    if [ -z "$PYTHON_AGENT_DOWNLOAD_PATH" ]; then
+        PYTHON_AGENT_DOWNLOAD_PATH="$PYTHON_AGENT_DOWNLOAD_PATH_PREFIX$ARCH_BASED_DOWNLOAD_PATH_EXTENSION/apm_insight_agent_python.zip"
+        PYTHON_AGENT_CHECKSUM="$PYTHON_AGENT_CHECKSUM_PREFIX$ARCH_BASED_DOWNLOAD_PATH_EXTENSION/apm_insight_agent_python.zip.sha256"
+    fi
+    cd "$TEMP_FOLDER_PATH"
+    wget -nv "$PYTHON_AGENT_DOWNLOAD_PATH"
+    ValidateChecksumAndInstallAgent "apm_insight_agent_python_wheels.zip" "$PYTHON_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/PYTHON"
+    cd "$CURRENT_DIRECTORY"
+    Log "INSTALLING APMINSIGHT PYTHON PACKAGE"
+    PYTHON_FILE_PATH="$AGENT_INSTALLATION_PATH/lib/PYTHON/wheels"
+    if [ "$KUBERNETES_ENV" -eq 1 ]; then
+        PYTHON_FILE_PATH="$AGENT_INSTALLATION_PATH/wheels"
+    fi
+    pip uninstall --yes apminsight
+    pip install --upgrade --no-index --find-links="$PYTHON_FILE_PATH" apminsight 2>/tmp/python_agent_installation_warnings.log
+    PYTHON_AGENT_PATH="$(pip show apminsight | awk '/^Location:/ {print $2}')"
+    NEW_PYTHON_PATH="$PYTHON_AGENT_PATH/apminsight/bootstrap:$PYTHON_AGENT_PATH:"
+    AGENT_CONF_STR="$AGENT_CONF_STR""NEW_PYTHON_PATH=$NEW_PYTHON_PATH\n"
+}
+
+InstallDotNetCoreAgent() {
+    cd "$TEMP_FOLDER_PATH"
+    wget -nv "$DOTNETCORE_AGENT_DOWNLOAD_PATH"
+    wget -nv "$DOTNETCORE_AGENT_CHECKSUM"
+    Originalchecksumvalue="$(cat "apminsight-dotnetcoreagent-linux.sh.sha256")"
+    Downloadfilechecksumvalue="$(sha256sum "apminsight-dotnetcoreagent-linux.sh" | awk -F' ' '{print $1}')"
+    if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
+        sudo bash ./apminsight-dotnetcoreagent-linux.sh -Destination "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE" -OneAgentInstall -OneAgentHomePath "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
     else
-        echo "System uses musl"
-        agentUrl="$agentZipMuslUrl"
-        checksumUrl="$checksumMuslUrl"
+        Log "Checksum Validation failed for DotnetCore agent installation file"
     fi
-
-    # Download the agent zip file
-    Print "Downloading the agent zip file..."
-    wget -O "$agentZipName" "$agentUrl"
-
-    if [ $? -ne 0 ]; then
-        echo "Failed to download the agent zip file"
-        exit 1
-    fi
-
-    # Download the checksum file
-    Print "Downloading the checksum file..."
-    wget -O "checksum.txt" "$checksumUrl"
-
-    if [ $? -ne 0 ]; then
-        echo "Failed to download the checksum file"
-        rm "$agentZipName"
-        exit 1
-    fi
-
-    # Verify the checksum
-    actualChecksum=$(sha256sum "$agentZipName" | awk '{print $1}')
-    expectedChecksum=$(cat checksum.txt)
-
-    if [ "$actualChecksum" != "$expectedChecksum" ]; then
-        echo "Checksum verification failed! Expected $expectedChecksum but got $actualChecksum"
-        rm "checksum.txt"
-        exit 1
-    else 
-        echo "Checksum verification successful.."
-    fi
-
-    # Extract the agent zip file
-    Print "Extracting the agent zip file..."
-    unzip "$agentZipName"
-
-    if [ $? -ne 0 ]; then
-        echo "Failed to extract the agent zip file"
-        rm "$agentZipName"
-        exit 1
-    fi
-
-    # Clean up the downloaded files
-    rm "$agentZipName" "checksum.txt"
+    cd "$CURRENT_DIRECTORY"
 }
 
-function Print() {
-    echo -e "\n$1"
+#INSTALL S247DATAEXPORTER
+InstallS247DataExporter() {
+    Log "INSTALLING S247DATAEXPORTER"
+    EXPORTER_INSTALLATION_ARGUMENTS="-license.key "$APMINSIGHT_LICENSE_KEY" -apminsight.oneagent.conf.filepath "$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini""
+    DOWNLOAD_PATH="https://staticdownloads.site24x7.""$APMINSIGHT_DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
+    if [ "$BUNDLED" -eq 0 ] && [ "$KUBERNETES_ENV" -eq 0 ]; then
+        cd "$TEMP_FOLDER_PATH"
+        wget -nv -O InstallDataExporter.sh "$DOWNLOAD_PATH"
+        eval "sudo -E sh InstallDataExporter.sh "$EXPORTER_INSTALLATION_ARGUMENTS""
+        cd "$CURRENT_DIRECTORY"
+        return
+    fi
+    exporter_zip_path="S247DataExporterFolder/$ARCH_BASED_DOWNLOAD_PATH_EXTENSION/S247DataExporter.zip"
+    if [ "$KUBERNETES_ENV" -eq 1 ]; then
+        exporter_zip_path="$AGENT_INSTALLATION_PATH/S247DataExporterFolder/$ARCH_BASED_DOWNLOAD_PATH_EXTENSION/S247DataExporter.zip"
+    unzip "$exporter_zip_path" -d "/opt"
+    cd /opt/S247DataExporter/bin
+    sh service.sh install "$EXPORTER_INSTALLATION_ARGUMENTS"
+    sudo rm /opt/S247DataExporter.zip
+    cd "$CURRENT_DIRECTORY"
+    fi
 }
 
-function CopyFiles() {
-    agentPath=$1
-    mkdir -p "$agentPath"
-
-    if [ "$IsUpdateFound" = false ] && [ "$IgnoreFolderPermission" = false ]; then
-        SetFolderPermissions "$agentPath"
-    fi
-
-    resolvedPath=$(realpath "$agentPath")
-
-	# Rename existing .dll files
-	if [ -d "$resolvedPath/store" ]; then
-		find "$resolvedPath/store" -name "*.dll" -exec sh -c 'mv "$0" "${0%.dll}_old.dll"' {} \;
-	fi
-	if [ -d "$resolvedPath/x64" ]; then
-		find "$resolvedPath/x64" -name "*.so" -exec sh -c 'mv "$0" "${0%.so}_old.so"' {} \;
-	fi
-	if [ -d "$resolvedPath/x86" ]; then
-		find "$resolvedPath/x86" -name "*.so" -exec sh -c 'mv "$0" "${0%.so}_old.so"' {} \;
-	fi
-
-    CopyAgentFiles "$resolvedPath"
-
-    if [ "$IsUpdateFound" = false ] && [ "$OneAgentInstall" = false ]; then
-        SetEnvironmentVariables "$resolvedPath"
-        ModifyConfiguration "$resolvedPath"
-    elif [ "$OneAgentInstall" = true ]; then
-        ModifyConfiguration "$OneAgentHomePath/Site24x7DotNetCoreAgent"
-    fi
-
-    find "$resolvedPath/store" -type f -exec chmod +x {} \;
-
-    if [ "$OneAgentInstall" = false ]; then
-        # Set write access for everyone in the <InstallLocation>/Site24x7DotNetCoreAgent/DotNetAgent directory
-        dotNetAgentPath="$installPath/DotNetAgent"
-        if [ -d "$dotNetAgentPath" ]; then
-            sudo chmod -R 777 "$dotNetAgentPath"
-        fi
-    fi
-
-    CreateVersionInfoFile "$resolvedPath"
+SetupOneagentFiles() {
+    Log "DELETING EXISTING ONEAGENT FILES IF ANY"
+    RemoveExistingOneagentFiles
+    mkdir -p "$AGENT_INSTALLATION_PATH/bin"
+    mkdir -p "$TEMP_FOLDER_PATH"
+    cd "$TEMP_FOLDER_PATH"
+    #wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
+    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    cd "$CURRENT_DIRECTORY"
 }
 
-function CopyAgentFiles() {
-    resolvedPath=$1
-    PSScriptRoot=$(dirname "$(realpath "$0")")
+#GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
+GiveFilePermissions() {
+    Log "GIVING FILE PERMISSIONS"
+    chown -R apminsight-oneagent-user "$AGENT_INSTALLATION_PATH"
+    chmod 777 -R "$APMINSIGHT_ONEAGENT_PATH"
+    chmod 755 -R "$AGENT_INSTALLATION_PATH/bin"
+    chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
+    chmod 777 -R "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
+    chmod 644 "$PRELOAD_FILE_PATH"
+    chmod 644 "/lib/libapminsightoneagentloader.so"
+}
 
-    if [ "$OfflineInstall" = false ]; then
-        PSScriptRoot="$PSScriptRoot/dotnet_core_linux"
+SetupApmAgents() {
+    CreateOneAgentFiles
+    SetupOneagentFiles
+    if ! [ "$ONEAGENT_OPERATION"  = "install" ]; then
+        Log "Ignoring APM agents Installation"
+        return
     fi
+    DownloadAgentFiles
+    #InstallNodeJSDependencies
+    #InstallPythonDependencies
+    #InstallDotNetCoreAgent
+    #InstallS247DataExporter
+    LoadAgentForExistingJavaProcesses
+}
 
-    if [ "$OneAgentInstall" = true ]; then
-        mkdir -p "$OneAgentHomePath/Site24x7DotNetCoreAgent"
-        cp -r "$PSScriptRoot/Agent/DotNetAgent" "$OneAgentHomePath/Site24x7DotNetCoreAgent"
-    elif [ "$IsUpdateFound" = false ]; then
-        cp -r "$PSScriptRoot/Agent/DotNetAgent" "$resolvedPath"
+#CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
+LoadAgentForExistingJavaProcesses() {
+    Log "LOADING AGENT INTO EXISTING JAVA PROCESSES"
+    if [ "$APMINSIGHT_LICENSEKEY" = "" ]; then
+        Log "NO LICENSE KEY FOUND, LOADING AGENT TO EXISTING JAVA PROCESSES WILL BE SKIPPED"
+        return
     fi
+    Log "LOADING AGENT TO EXISTING JAVA PROCESSES"
+    pids=$(ps -ef | grep -e 'java' -e 'tomcat' | grep -v 'grep' | awk '{print $2}')
 
-    if [ -d "$resolvedPath/additionalDeps" ]; then
-        rm -rf "$resolvedPath/additionalDeps"
+    # Iterate over each PID and run the command with java -jar apminsight-javaagent.jar -start <pid>
+    DYNAMIC_LOAD_ARGUMENTS="-lk "$APMINSIGHT_LICENSE_KEY""
+    if [ "$APMINSIGHT_PROXY_URL" != "" ]; then
+        DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -ap $PROXY_STR"
     fi
-
-    cp -r "$PSScriptRoot/Agent/Deps/additionalDeps" "$resolvedPath"
-    cp "$PSScriptRoot/UninstallAgent.sh" "$resolvedPath"
-
-    cp -r "$PSScriptRoot/Agent/packages/x64" "$resolvedPath"
-    cp -r "$PSScriptRoot/Agent/packages/x86" "$resolvedPath"
-
-    for platform in "${Platforms[@]}"; do
-        for folderName in "${SupportedVersions[@]}"; do
-            mkdir -p "$resolvedPath/store/$platform/$folderName/DotNetAgent/1.0.0/lib/netcoreapp2.0"
-            cp "$PSScriptRoot/Agent/packages/AnyCPU/DotNetAgent.dll" "$resolvedPath/store/$platform/$folderName/DotNetAgent/1.0.0/lib/netcoreapp2.0"
-
-            mkdir -p "$resolvedPath/store/$platform/$folderName/DotNetAgent.Util/1.0.0/lib/netcoreapp2.0"
-            cp "$PSScriptRoot/Agent/packages/AnyCPU/DotNetAgent.Util.dll" "$resolvedPath/store/$platform/$folderName/DotNetAgent.Util/1.0.0/lib/netcoreapp2.0"
-
-            mkdir -p "$resolvedPath/store/$platform/$folderName/Site24x7.Agent.Api/1.0.0/lib/netcoreapp2.0"
-            cp "$PSScriptRoot/Agent/packages/AnyCPU/Site24x7.Agent.Api.dll" "$resolvedPath/store/$platform/$folderName/Site24x7.Agent.Api/1.0.0/lib/netcoreapp2.0"
-
-            mkdir -p "$resolvedPath/store/$platform/$folderName/AutoUpdate/1.0.0/lib/netcoreapp2.0"
-            cp "$PSScriptRoot/Agent/packages/AnyCPU/AutoUpdate.dll" "$resolvedPath/store/$platform/$folderName/AutoUpdate/1.0.0/lib/netcoreapp2.0"
-        done
+    if [ "$APMINSIGHT_HOST_URL" != "" ]; then
+        DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -aph $APMINSIGHT_HOST_URL"
+    fi
+    for pid in $pids; do
+    Log "JAVA PROCESS DETECTED: $pid"
+        eval "java -jar $AGENT_INSTALLATION_PATH/lib/JAVA/apminsight-javaagent.jar -start "$pid" "$DYNAMIC_LOAD_ARGUMENTS""
     done
 }
 
-function ModifyConfiguration() {
+WriteToAgentConfFile() {
+	AGENT_CONF_STR="[ApminsightOneAgent]\n"
 
-    if [ -n "$LicenseKey" ]; then
-        local encrypt_output
-        encrypt_output=$(encrypt_aes "$LicenseKey")
-
-        # Read the encrypted string, salt key, and initialization vector using a pipe delimiter
-        IFS='|' read -r EncryptedString SaltKey InitVector <<< "$encrypt_output"
+	if [ -n "$APMINSIGHT_PROXY_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROXY_URL=$APMINSIGHT_PROXY_URL\n"
     fi
-
-    agentPath=$1
-    filePath="$agentPath/DotNetAgent/apminsight.conf"
-    if [ -f "$filePath" ]; then
-        sed -i "s|license.key=.*|license.key=$EncryptedString|" "$filePath"
-        sed -i "s|agent_start_time=.*|agent_start_time=$SaltKey|" "$filePath"
-        sed -i "s|agent_id=.*|agent_id=$InitVector|" "$filePath"
-        if [ "$IsBehindProxy" = true ]; then
-            sed -i "s/behind.proxy=false/behind.proxy=true/" "$filePath"
-            sed -i "s/proxy.server.host=proxyserver/proxy.server.host=$ProxyHost/" "$filePath"
-            sed -i "s/proxy.server.port=proxyport/proxy.server.port=$ProxyPort/" "$filePath"
-            sed -i "s/proxy.auth.username=proxyuser/proxy.auth.username=$ProxyUser/" "$filePath"
-            sed -i "s/proxy.auth.password=proxypassword/proxy.auth.password=$ProxyPassword/" "$filePath"
-        fi
-        if [ "$DisableAppFilter" = true ]; then
-            DisableAppFilterInConfig "$filePath"
-        fi
+    if [ -n "$APMINSIGHT_HOST" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
     fi
-}
-
-function DisableAppFilterInConfig() {
-    agentConfigFilePath=$1
-    keyValueToFind="enable.appfilter="
-    keyValueToAddOrReplace="enable.appfilter=false"
-    fileContent=$(cat "$agentConfigFilePath")
-
-    if grep -q "$keyValueToFind" "$agentConfigFilePath"; then
-        sed -i "s/$keyValueToFind.*/$keyValueToAddOrReplace/" "$agentConfigFilePath"
+    if [ -n "$APMINSIGHT_PORT" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PORT=$APMINSIGHT_PORT\n"
+    fi
+    if [ -n "$APMINSIGHT_PROTOCOL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROTOCOL=$APMINSIGHT_PROTOCOL\n"
+    fi
+    if [ -n "$APMINSIGHT_HOST_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST_URL=$APMINSIGHT_HOST_URL\n"
+    fi  
+    if [ -n "$APMINSIGHT_MONITOR_GROUP" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_MONITOR_GROUP=$APMINSIGHT_MONITOR_GROUP\n"
+    fi
+    if [ -n "$PYTHON_AGENT_PATH" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""NEW_PYTHON_PATH=$NEW_PYTHON_PATH\n"
+    fi
+    if [ -n "$APMINSIGHT_LICENSEKEY" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_LICENSEKEY=$APMINSIGHT_LICENSEKEY\n"
+    fi
+    if [ -n "$APMINSIGHT_AGENT_START_TIME" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_AGENT_START_TIME=$APMINSIGHT_AGENT_START_TIME\n"
+    fi
+    if [ -n "$APMINSIGHT_AGENT_ID" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_AGENT_ID=$APMINSIGHT_AGENT_ID\n"
+    fi
+    AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_DOMAIN=$APMINSIGHT_DOMAIN\n"
+    AGENT_CONF_STR="$AGENT_CONF_STR""AGENT_KEY=$AGENT_KEY\n"
+    conf_filepath="$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini"
+    echo "$AGENT_CONF_STR" > "$conf_filepath"
+    if [ -f "$conf_filepath" ]; then
+        Log "Successfully created the oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
     else
-        echo "$keyValueToAddOrReplace" >> "$agentConfigFilePath"
+        Log "Error creating file oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
     fi
 }
 
-function SetEnvironmentVariables() {
-    installPath=$1
-    if [ "$InstallType" == "global" ]; then
-        SetLocalEnvironment "$installPath"
-        SetGlobalEnvironment "$installPath"
+#CREATE /etc/ld.so.preload FILE AND POPULATE IT
+SetPreload() {
+    Log "SETTING PRELOAD"
+    if [ -f "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" ]; then
+        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libapminsightoneagentloader.so
+        echo "/lib/libapminsightoneagentloader.so" >> "$PRELOAD_FILE_PATH"
     else
-        SetLocalEnvironment "$installPath"
+        Log "No file found at "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so""
+    fi
+
+}
+
+RemoveInstallationFiles() {
+    rm -rf "$TEMP_FOLDER_PATH"
+}
+
+MoveInstallationFiles() {
+    if [ "$ONEAGENT_OPERATION" = "install" ]; then
+        mv "$AGENT_STARTUP_LOGFILE_PATH" "$AGENT_INSTALLATION_PATH/logs"
+        mv "$(dirname "$(readlink -f "$0")")"/apm-one-agent-linux.sh "$AGENT_INSTALLATION_PATH/bin/"
     fi
 }
 
-function SetLocalEnvironment() {
-    installPath=$1
+CompareAgentVersions() {
+    if [ "$EXISTING_AGENT_VERSION_NUM" -lt "$CURRENT_AGENT_VERSION_NUM" ]; then
+        # ReadExistingOneagentPath
+        # if [ -f "$EXISTING_ONEAGENTPATH/conf/oneagentconf.ini" ]; then
+        #     STARTUP_CONF_FILEPATH="$EXISTING_ONEAGENTPATH/conf/oneagentconf.ini"
+        # fi
+        # AGENT_INSTALLATION_PATH="$EXISTING_ONEAGENTPATH"
+        if [ -f "$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini" ]; then
+            STARTUP_CONF_FILEPATH="$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini"
+        fi
+        if [ "$ONEAGENT_OPERATION" = "install" ]; then
+            echo -n "An outdated version of oneagent exists. Would you like to install the new version?\nPlease enter y[es] or n[o]:"
+            read upgrade
+            if [ "$upgrade" = "y" ] || [ "$upgrade" = "yes" ]; then
+                echo "Proceeding to upgrade Oneagent"
+                ONEAGENT_OPERATION="upgrade"
+                return
+            else
+                exit 0
+            fi
+        fi
+        return
+    elif [ "$EXISTING_AGENT_VERSION_NUM" -gt "$CURRENT_AGENT_VERSION_NUM" ]; then
+        Log "Skipping Installation as Oneagent with greater version already exists"
 
-    export CORECLR_ENABLE_PROFILING=1
-    export CORECLR_PROFILER={9D363A5F-ED5F-4AAC-B456-75AFFA6AA0C8}
-    export CORECLR_SITE24X7_HOME=$installPath
-    export CORECLR_PROFILER_PATH_64="$installPath/x64/libClrProfilerAgent.so"
-    export CORECLR_PROFILER_PATH_32="$installPath/x86/libClrProfilerAgent.so"
-    export DOTNET_ADDITIONAL_DEPS="$installPath/additionalDeps;"
-    export DOTNET_SHARED_STORE="$installPath/store;"
-    export S247_LICENSE_KEY=$LicenseKey
-    if [ "$DisableAppFilter" = true ] && [ -n "$AppName" ]; then
-        export SITE24X7_APP_NAME=$AppName
-    fi
-}
-
-function SetGlobalEnvironment() {
-    installPath=$1
-    
-    echo "CORECLR_ENABLE_PROFILING=1" | sudo tee -a /etc/environment
-    echo "CORECLR_PROFILER={9D363A5F-ED5F-4AAC-B456-75AFFA6AA0C8}" | sudo tee -a /etc/environment
-    echo "CORECLR_SITE24X7_HOME=$installPath" | sudo tee -a /etc/environment
-    echo "CORECLR_PROFILER_PATH_64=$installPath/x64/libClrProfilerAgent.so" | sudo tee -a /etc/environment
-    echo "CORECLR_PROFILER_PATH_32=$installPath/x86/libClrProfilerAgent.so" | sudo tee -a /etc/environment
-    echo "DOTNET_ADDITIONAL_DEPS=$installPath/additionalDeps" | sudo tee -a /etc/environment
-    echo "DOTNET_SHARED_STORE=$installPath/store" | sudo tee -a /etc/environment
-    echo "S247_LICENSE_KEY=$LicenseKey" | sudo tee -a /etc/environment
-    if [ "$DisableAppFilter" = true ] && [ -n "$AppName" ]; then
-        echo "SITE24X7_APP_NAME=$AppName" | sudo tee -a /etc/environment
-    fi
-}
-
-function IsAdmin() {
-    if [ "$EUID" -ne 0 ]; then
-        echo false
     else
-        echo true
+        Log "Skipping Installation as Oneagent with the current version already exists"
+    exit 1
+    fi
+
+}
+
+checkVersion() {
+    ETC_ENV_FILEPATH="/etc/environment"
+    if [ -f $ETC_ENV_FILEPATH ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+                *=*)
+                    key=$(echo "$line" | cut -d '=' -f 1 | sed 's/[[:space:]]*$//')
+                    if [ "$key" = "ONEAGENT_VERSION" ]; then
+                        EXISTING_ONEAGENT_VERSION=$(echo "$line" | cut -d '=' -f 2- | sed 's/^[[:space:]]*//')
+                        EXISTING_AGENT_VERSION_NUM="$(echo "$EXISTING_ONEAGENT_VERSION" | sed 's/\.//g')"
+                        EXISTING_AGENT_VERSION_NUM=$((EXISTING_AGENT_VERSION_NUM))
+                        CURRENT_AGENT_VERSION_NUM="$(echo "$ONEAGENT_VERSION" | sed 's/\.//g')"
+                        CURRENT_AGENT_VERSION_NUM=$((CURRENT_AGENT_VERSION_NUM))
+                    fi
+                    ;;
+            esac
+        done < "$ETC_ENV_FILEPATH"
+        if [ "$EXISTING_ONEAGENT_VERSION" ]; then
+            CompareAgentVersions
+        fi
+    fi
+
+}
+
+RegisterOneagentVersion() {
+    if [ -f "/etc/environment" ]; then
+        sed -i '/^ONEAGENT_VERSION/d' /etc/environment
+        echo "ONEAGENT_VERSION=$ONEAGENT_VERSION" >> "/etc/environment"
     fi
 }
 
-function ValidateParameters() {
-    InstallType=$(echo "$InstallType" | tr '[:upper:]' '[:lower:]' | xargs)
-    Destination=$(echo "$Destination" | xargs)
-    LicenseKey=$(echo "$LicenseKey" | xargs)
-    AppName=$(echo "$AppName" | xargs)
+FindKeyValPairInFile() {
+    FILEPATH="$1"
+    if [ -f $FILEPATH ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+                *=*)
+                    key=$(echo "$line" | cut -d '=' -f 1 | sed 's/[[:space:]]*$//')
+                    value=$(echo "$line" | cut -d '=' -f 2- | sed 's/^[[:space:]]*//')
+                    if [ "$key" = "$2" ]; then
+                        eval $key=\"$value\"
+                        return 0
+                    fi
+                    ;;
+            esac
+        done < "$FILEPATH"
+    fi
+    return 1
+}
 
-    flag=false
-    
-    if [ -z "$Destination" ]; then
-        Print " * Please provide -Destination parameter."
-        flag=true
+ReadExistingOneagentPath() {
+    EXISTING_ONEAGENTPATH="$AGENT_INSTALLATION_PATH"
+    FindKeyValPairInFile "/etc/environment" "ONEAGENTPATH"
+    if [ -n "$ONEAGENTPATH" ]; then
+        EXISTING_ONEAGENTPATH="$ONEAGENTPATH"
     fi
-    if [ "$OneAgentInstall" = false ]; then
-        if [ -z "$LicenseKey" ]; then
-            Print " * Please provide -LicenseKey parameter."
-            flag=true
+}
+
+CheckIfOneagentExists() {
+    OneagentExists="$(FindKeyValPairInFile "/etc/environment" "OENAGENT_VERISON")"
+    return $((OneagentExists))
+}
+
+CheckAgentInstallation() {
+    if [ "$1" = "-uninstall" ]; then
+        Log "Uninstalling Oneagent...."
+        ONEAGENT_OPERATION="uninstall"
+        if ! CheckIfOneagentExists; then
+            Log "Oneagent is not installed. Aborting uninstallation"
+            exit 1
+        fi
+        # ReadExistingOneagentPath
+        # if ! [ -f "$EXISTING_ONEAGENTPATH/bin/uninstall.sh" ]; then
+        #     Log "Cannot find uninstall.sh file at Oneagent installed location: $EXISTING_ONEAGENTPATH/bin/uninstall.sh"
+        #     exit 1
+        # fi
+        # sh "$EXISTING_ONEAGENTPATH/bin/uninstall.sh"
+        if ! [ -f "$AGENT_INSTALLATION_PATH/bin/uninstall.sh" ]; then
+            Log "Cannot find uninstall.sh file at Oneagent installed location: $AGENT_INSTALLATION_PATH/bin/uninstall.sh"
+            exit 1
+        fi
+        exit 0
+
+    elif [ "$1" = "-upgrade" ]; then
+        Log "Upgrading Oneagent...."
+        ONEAGENT_OPERATION="upgrade"
+        if ! CheckIfOneagentExists; then
+            Log "No existing Oneagent version found. Installing this version of Oneagent"
+            ONEAGENT_OPERATION="install"
+        fi
+    else
+        Log "Installing Oneagent...."
+    fi
+    checkVersion
+}
+
+CheckUser() {
+    if !(id "apminsight-oneagent-user" >/dev/null 2>&1); then
+        Log "User "apminsight-oneagent-user" does not exist."
+        return 0
+    fi
+    return 1
+}
+
+CheckAndGrantSudoPermissionForApmUser() {
+    if groups apminsight-oneagent-user | grep -q "\bsudo\b"; then
+        Log "User 'apminsight-oneagent-user' already has sudo privileges."
+    else
+        sudo usermod -aG sudo apminsight-oneagent-user
+    fi
+}
+CheckAndCreateOneagentUser() {
+    if id apminsight-oneagent-user >/dev/null 2>&1; then
+        Log "User 'apminsight-oneagent-user' already exists."
+    else
+        useradd --system --no-create-home --no-user-group apminsight-oneagent-user
+        if ! CheckUser; then
+            Log "Aborting Apminsight Oneagent Installation"
+            exit 1
         fi
     fi
-    if [ "$IsBehindProxy" = true ]; then
-        if [ -z "$ProxyHost" ]; then
-            Print " * Please provide -ProxyHost parameter."
-            flag=true
-        fi
-        if [ "$ProxyPort" -eq 0 ]; then
-            Print " * Please provide -ProxyPort parameter and the value should not be zero."
-            flag=true
-        fi
-    fi
-    if [ "$OneAgentInstall" = true ]; then
-        if [ -z "$OneAgentHomePath" ]; then
-            Print " * Please provide -OneAgentHomePath parameter."
-            flag=true
-        fi
-    fi
-    
-    if [ "$flag" = true ]; then
+    CheckAndGrantSudoPermissionForApmUser
+}
+
+RegisterOneagentService() {
+    Log "Registering Apminsight-Oneagent-Linux service"
+    rm -f "/etc/systemd/system/apminsight-oneagent-linux.service"
+    if [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" ]; then
+        Log "Cannot find Oneagent service binary. Skipping the service start"
         exit 1
     fi
+    mv "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl restart apminsight-oneagent-linux.service
 }
 
-function CreateVersionInfoFile() {
-    agentPath=$1
-    echo "$AgentVersion" > "$agentPath/version.info"
-}
-
-function CheckAdminRights() {
-    	Print "Checking Admin Rights"
-	if [ "$(IsAdmin)" = false ] && [ "$InstallType" = "global" ]; then
-        	Print "You must have administrator rights to install the agent globally. Please run this script with sudo."
-        	exit 1
-    	fi
-    
-}
-
-function SetFolderPermissions() {
-    directory=$1
-    
-    # Set default permissions for the entire installation location
-    sudo chown -R $USER:$USER "$directory"
-    sudo chmod -R 755 "$directory"
-}
-
-function generate_random_salt_key() {
-    local size=${1:-32}
-    head -c $size /dev/urandom | base64
-}
-
-function generate_random_iv() {
-    local size=${1:-16}
-    head -c $size /dev/urandom | base64
-}
-
-function encrypt_aes() {
-    local originalStr="$1"
-
-    if [ -z "$originalStr" ]; then
-        echo "No String For Encryption" >&2
-        return 1
-    fi
-
-    # Generate a random salt key and IV
-    SaltKey=$(generate_random_salt_key 32)
-    InitVector=$(generate_random_iv 16)
-
-    # Convert base64 keys to hex
-    local SaltKeyHex=$(echo -n "$SaltKey" | base64 -d | xxd -p -c 32)
-    local InitVectorHex=$(echo -n "$InitVector" | base64 -d | xxd -p -c 16)
-
-    # Encrypt the string, suppressing the output of salt, key, and IV
-    EncryptedString=$(echo -n "$originalStr" | openssl enc -aes-256-cbc -base64 -K "$SaltKeyHex" -iv "$InitVectorHex" -nosalt -md md5 2>/dev/null)
-
-    # Return the result in the format you need
-    echo "$EncryptedString|$SaltKey|$InitVector"
-}
-
-while [ $# -gt 0 ]; do
-    case "$1" in
-        -Destination)
-            Destination="$2"
-            shift 2
-            ;;
-        -InstallType)
-            InstallType="$2"
-            shift 2
-            ;;
-        -LicenseKey)
-            LicenseKey="$2"
-            shift 2
-            ;;
-        -AppName)
-            AppName="$2"
-            shift 2
-            ;;
-        -ForceUpdate)
-            ForceUpdate=true
-            shift 1
-            ;;
-        -Help)
-            Help=true
-            shift 1
-            ;;
-        -IgnoreFolderPermission)
-            IgnoreFolderPermission=true
-            shift 1
-            ;;
-        -IsBehindProxy)
-            IsBehindProxy=true
-            shift 1
-            ;;
-        -ProxyHost)
-            ProxyHost="$2"
-            shift 2
-            ;;
-        -ProxyPort)
-            ProxyPort="$2"
-            shift 2
-            ;;
-        -ProxyUser)
-            ProxyUser="$2"
-            shift 2
-            ;;
-        -ProxyPassword)
-            ProxyPassword="$2"
-            shift 2
-            ;;
-        -DisableAppFilter)
-            DisableAppFilter=true
-            shift 1
-            ;;
-        -OneAgentInstall)
-            OneAgentInstall=true
-            shift 1
-            ;;
-        -OneAgentHomePath)
-            OneAgentHomePath="$2"
-            shift 2
-            ;;
-        -OfflineInstall)
-            OfflineInstall=true
-            shift 1
-            ;;
-        *)
-            echo "Unknown parameter: $1"
-            exit 1
-            ;;
-    esac
-done
-
-
-ValidateParameters
-CheckAdminRights
-InstallAgent
-
+main() {
+    CheckArgs $@
+    CheckAgentInstallation $@
+    RedirectLogs
+    CheckAndCreateOneagentUser
+    SetupPreInstallationChecks
+    SetupAgentConfigurations "$@"
+    SetupApmAgents
+    WriteToAgentConfFile
+    RegisterOneagentVersion
+    SetPreload
+    GiveFilePermissions
+    RegisterOneagentService
+    MoveInstallationFiles
+    RemoveInstallationFiles
+    }
+main "$@"
