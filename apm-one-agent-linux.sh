@@ -9,7 +9,7 @@ PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/ch
 DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
 DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm-one-agent-linux-files.zip"
+ONEAGENT_FILES_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip"
 ONEAGENT_FILES_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm-one-agent-linux-files.zip.sha256"
 
 APMINSIGHT_ONEAGENT_PATH="/opt"
@@ -336,8 +336,8 @@ DownloadAgentFiles() {
         Log "DOWNLOADING AGENT FILES"
         mkdir -p "$TEMP_FOLDER_PATH"
         cd "$TEMP_FOLDER_PATH"
-        wget -nv "$NODE_MINIFIED_DOWNLOAD_PATH"
-        ValidateChecksumAndInstallAgent "apm_insight_agent_nodejs.zip" "$NODE_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/NODE"
+        # wget -nv "$NODE_MINIFIED_DOWNLOAD_PATH"
+        # ValidateChecksumAndInstallAgent "apm_insight_agent_nodejs.zip" "$NODE_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/NODE"
 
         wget -nv "$JAVA_AGENT_DOWNLOAD_PATH"
         ValidateChecksumAndInstallAgent "apminsight-javaagent.zip" "$JAVA_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/JAVA"
@@ -410,7 +410,7 @@ InstallDotNetCoreAgent() {
     Originalchecksumvalue="$(cat "apminsight-dotnetcoreagent-linux.sh.sha256")"
     Downloadfilechecksumvalue="$(sha256sum "apminsight-dotnetcoreagent-linux.sh" | awk -F' ' '{print $1}')"
     if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
-        sudo bash ./apminsight-dotnetcoreagent-linux.sh -Destination "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE" -OneAgentInstall -OneAgentHomePath "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
+        bash ./apminsight-dotnetcoreagent-linux.sh -Destination "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE" -OneAgentInstall -OneAgentHomePath "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
     else
         Log "Checksum Validation failed for DotnetCore agent installation file"
     fi
@@ -435,7 +435,7 @@ InstallS247DataExporter() {
     unzip "$exporter_zip_path" -d "/opt"
     cd /opt/S247DataExporter/bin
     sh service.sh install "$EXPORTER_INSTALLATION_ARGUMENTS"
-    sudo rm /opt/S247DataExporter.zip
+    rm /opt/S247DataExporter.zip
     cd "$CURRENT_DIRECTORY"
     fi
 }
@@ -447,7 +447,8 @@ SetupOneagentFiles() {
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    unzip -j apm_insight_oneagent_linux_files.zip -d "$AGENT_INSTALLATION_PATH/bin"
+    #ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -471,10 +472,10 @@ SetupApmAgents() {
         return
     fi
     DownloadAgentFiles
-    InstallNodeJSDependencies
-    InstallPythonDependencies
-    InstallDotNetCoreAgent
-    InstallS247DataExporter
+    #InstallNodeJSDependencies
+    #InstallPythonDependencies
+    #InstallDotNetCoreAgent
+    #InstallS247DataExporter
     LoadAgentForExistingJavaProcesses
 }
 
@@ -563,10 +564,13 @@ RemoveInstallationFiles() {
 }
 
 MoveInstallationFiles() {
-    if [ "$ONEAGENT_OPERATION" = "install" ]; then
+    if [ "$AGENT_STARTUP_LOGFILE_PATH" != "$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log" ]; then
         mv "$AGENT_STARTUP_LOGFILE_PATH" "$AGENT_INSTALLATION_PATH/logs"
+    fi
+    if [ "$(dirname "$(readlink -f "$0")")" != "$AGENT_INSTALLATION_PATH/bin" ]; then
         mv "$(dirname "$(readlink -f "$0")")"/apm-one-agent-linux.sh "$AGENT_INSTALLATION_PATH/bin/"
     fi
+    
 }
 
 CompareAgentVersions() {
@@ -709,7 +713,7 @@ CheckAndGrantSudoPermissionForApmUser() {
     if groups apminsight-oneagent-user | grep -q "\bsudo\b"; then
         Log "User 'apminsight-oneagent-user' already has sudo privileges."
     else
-        sudo usermod -aG sudo apminsight-oneagent-user
+        usermod -aG sudo apminsight-oneagent-user
     fi
 }
 CheckAndCreateOneagentUser() {
@@ -728,12 +732,12 @@ CheckAndCreateOneagentUser() {
 RegisterOneagentService() {
     Log "Registering Apminsight-Oneagent-Linux service"
     rm -f "/etc/systemd/system/apminsight-oneagent-linux.service"
-    if [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" ]; then
+    if ! [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" ]; then
         Log "Cannot find Oneagent service binary. Skipping the service start"
         exit 1
     fi
-    mv "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" /etc/systemd/system/
-    systemctl enable my-service.service
+    cp "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" /etc/systemd/system/
+    systemctl enable apminsight-oneagent-linux.service
     systemctl daemon-reload
     systemctl restart apminsight-oneagent-linux.service
 }
