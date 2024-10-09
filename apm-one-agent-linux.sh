@@ -295,51 +295,16 @@ SetupAgentConfigurations() {
     EncryptLicenseKey
 }
 
-RemoveExistingOneagentFiles() {
-    rm -rf "$AGENT_INSTALLATION_PATH/bin/"
-    sed -i '/libapminsightoneagentloader.so$/d' /etc/ld.so.preload
-    rm -f /lib/libapminsightoneagentloader.so
-}
-
-#CREATE AGENT FOLDERS IN USER MACHINE AND STORE THE DOWNLOADED AGENT FILES 
-CreateOneAgentFiles() {
-    Log "CREATING AGENT FILES"
-    mkdir -p "$AGENT_INSTALLATION_PATH"
-    mkdir -p "$AGENT_INSTALLATION_PATH/conf"
-    mkdir -p "$AGENT_INSTALLATION_PATH/lib"
-    mkdir -p "$AGENT_INSTALLATION_PATH/bin"
-    mkdir -p "$AGENT_INSTALLATION_PATH/logs"
-    touch "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
-}
-
-CreateApmAgentFiles() {
-    rm -rf "$AGENT_INSTALLATION_PATH/lib/"
-    mkdir -p "$AGENT_INSTALLATION_PATH/lib/NODE"
-    mkdir -p "$AGENT_INSTALLATION_PATH/lib/JAVA"
-    mkdir -p "$AGENT_INSTALLATION_PATH/lib/PYTHON"
-    mkdir -p "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/JAVA"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/JAVA/logs"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODE/"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODE/logs"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/PYTHON"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/PYTHON/logs"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
-    mkdir -p "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE/logs"
-}
-
 DownloadAgentFiles() {
     if [ "$KUBERNETES_ENV" -eq 1 ]; then
         return
 
     elif [ "$BUNDLED" -eq 0 ]; then
-        CreateApmAgentFiles
         Log "DOWNLOADING AGENT FILES"
         mkdir -p "$TEMP_FOLDER_PATH"
         cd "$TEMP_FOLDER_PATH"
-        # wget -nv "$NODE_MINIFIED_DOWNLOAD_PATH"
-        # ValidateChecksumAndInstallAgent "apm_insight_agent_nodejs.zip" "$NODE_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/NODE"
+        wget -nv "$NODE_MINIFIED_DOWNLOAD_PATH"
+        ValidateChecksumAndInstallAgent "apm_insight_agent_nodejs.zip" "$NODE_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/NODE"
 
         wget -nv "$JAVA_AGENT_DOWNLOAD_PATH"
         ValidateChecksumAndInstallAgent "apminsight-javaagent.zip" "$JAVA_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/JAVA"
@@ -442,10 +407,28 @@ InstallS247DataExporter() {
     fi
 }
 
+RemoveExistingOneagentFiles() {
+    Log "Removing existing Oneagent binaries and files"
+    rm -rf "$AGENT_INSTALLATION_PATH/bin/*"
+    sed -i '/libapminsightoneagentloader.so$/d' /etc/ld.so.preload
+    rm -f /lib/libapminsightoneagentloader.so
+}
+
+#CREATE AGENT FOLDERS IN USER MACHINE AND STORE THE DOWNLOADED AGENT FILES 
+CreateOneAgentFiles() {
+    Log "CREATING ONEAGENT FILES"
+    mkdir -p "$AGENT_INSTALLATION_PATH"
+    mkdir -p "$AGENT_INSTALLATION_PATH/conf"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib"
+    mkdir -p "$AGENT_INSTALLATION_PATH/bin"
+    mkdir -p "$AGENT_INSTALLATION_PATH/logs"
+    touch "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
+}
+
 SetupOneagentFiles() {
     Log "DELETING EXISTING ONEAGENT FILES IF ANY"
     RemoveExistingOneagentFiles
-    mkdir -p "$AGENT_INSTALLATION_PATH/bin"
+    CreateOneAgentFiles
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
@@ -466,18 +449,41 @@ GiveFilePermissions() {
     chmod 644 "/lib/libapminsightoneagentloader.so"
 }
 
+RemoveExistingAgentFiles() {
+    Log "REMOVING EXISTING APMINSIGHT AGENT FILES"
+    rm -rf "$AGENT_INSTALLATION_PATH/lib/*"
+}
+
+CreateApmAgentFiles() {
+    Log "CREATING APMINSIGHT AGENT FILES"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/NODE"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/JAVA"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/PYTHON"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/JAVA"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/JAVA/logs"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODE/"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/NODE/logs"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/PYTHON"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/PYTHON/logs"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE/logs"
+}
+
 SetupApmAgents() {
-    CreateOneAgentFiles
     SetupOneagentFiles
     if ! [ "$ONEAGENT_OPERATION"  = "install" ]; then
         Log "Ignoring APM agents Installation"
         return
     fi
+    RemoveExistingAgentFiles
+    CreateApmAgentFiles
     DownloadAgentFiles
-    #InstallNodeJSDependencies
-    #InstallPythonDependencies
-    #InstallDotNetCoreAgent
-    #InstallS247DataExporter
+    InstallNodeJSDependencies
+    InstallPythonDependencies
+    InstallDotNetCoreAgent
+    InstallS247DataExporter
     LoadAgentForExistingJavaProcesses
 }
 
@@ -731,9 +737,19 @@ CheckAndCreateOneagentUser() {
     CheckAndGrantSudoPermissionForApmUser
 }
 
+CheckAndRemoveExistingService() {
+    if systemctl list-units --type=service --all | grep -q "apminsight-oneagent-linux.service"; then
+        Log "Found an existing apminsight-oneagent-linux service> Removing the service"
+        systemctl stop apminsight-oneagent-linux.service
+        systemctl disable apminsight-oneagent-linux.service
+    fi
+    rm -f /etc/systemd/system/apminsight-oneagent-linux.service
+    systemctl daemon-reload
+}
+
 RegisterOneagentService() {
     Log "Registering Apminsight-Oneagent-Linux service"
-    rm -f "/etc/systemd/system/apminsight-oneagent-linux.service"
+    CheckAndRemoveExistingService()
     if ! [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" ]; then
         Log "Cannot find Oneagent service binary. Skipping the service start"
         exit 1
