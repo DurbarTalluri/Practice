@@ -653,7 +653,7 @@ FindKeyValPairInFile() {
                     key=$(echo "$line" | cut -d '=' -f 1 | sed 's/[[:space:]]*$//')
                     value=$(echo "$line" | cut -d '=' -f 2- | sed 's/^[[:space:]]*//')
                     if [ "$key" = "$2" ]; then
-                        eval $key=\"$value\"
+                        eval $3=\"$value\"
                         return 0
                     fi
                     ;;
@@ -665,14 +665,11 @@ FindKeyValPairInFile() {
 
 ReadExistingOneagentPath() {
     EXISTING_ONEAGENTPATH="$AGENT_INSTALLATION_PATH"
-    FindKeyValPairInFile "/etc/environment" "ONEAGENTPATH"
-    if [ -n "$ONEAGENTPATH" ]; then
-        EXISTING_ONEAGENTPATH="$ONEAGENTPATH"
-    fi
+    FindKeyValPairInFile "/etc/environment" "ONEAGENTPATH" "EXISTING_ONEAGENT_PATH"
 }
 
 CheckIfOneagentExists() {
-    OneagentExists="$(FindKeyValPairInFile "/etc/environment" "OENAGENT_VERISON")"
+    OneagentExists="$(FindKeyValPairInFile "/etc/environment" "OENAGENT_VERISON" "EXISTING_ONEAGENT_VERSION")"
     Log "ONEAGENT EXISTS: $OneagentExists"
     return "$OneagentExists"
 }
