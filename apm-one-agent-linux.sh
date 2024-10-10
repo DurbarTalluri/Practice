@@ -665,20 +665,15 @@ FindKeyValPairInFile() {
 
 ReadExistingOneagentPath() {
     EXISTING_ONEAGENTPATH="$AGENT_INSTALLATION_PATH"
-    FindKeyValPairInFile "/etc/environment" "ONEAGENTPATH" "EXISTING_ONEAGENT_PATH"
-}
-
-CheckIfOneagentExists() {
-    OneagentExists="$(FindKeyValPairInFile "/etc/environment" "OENAGENT_VERISON" "EXISTING_ONEAGENT_VERSION")"
-    Log "ONEAGENT EXISTS: $OneagentExists"
-    return "$OneagentExists"
+    FindKeyValPairInFile "/etc/environment" "ONEAGENTPATH" "EXISTING_ONEAGENTPATH"
 }
 
 CheckAgentInstallation() {
+    FindKeyValPairInFile "/etc/environment" "OENAGENT_VERISON" "EXISTING_ONEAGENT_VERSION"
     if [ "$1" = "-uninstall" ]; then
         Log "Uninstalling Oneagent...."
         ONEAGENT_OPERATION="uninstall"
-        if ! CheckIfOneagentExists; then
+        if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
             Log "Oneagent is not installed. Aborting uninstallation"
             exit 1
         fi
@@ -697,7 +692,7 @@ CheckAgentInstallation() {
     elif [ "$1" = "-upgrade" ]; then
         Log "Upgrading Oneagent...."
         ONEAGENT_OPERATION="upgrade"
-        if ! CheckIfOneagentExists; then
+       if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
             Log "No existing Oneagent version found. Installing this version of Oneagent"
             ONEAGENT_OPERATION="install"
         fi
