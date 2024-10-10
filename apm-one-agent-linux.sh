@@ -430,7 +430,6 @@ SetupOneagentFiles() {
     RemoveExistingOneagentFiles
     CreateOneAgentFiles
     mkdir -p "$TEMP_FOLDER_PATH"
-    cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
     unzip -j apm_insight_oneagent_linux_files.zip -d "$AGENT_INSTALLATION_PATH/bin"
     #ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
