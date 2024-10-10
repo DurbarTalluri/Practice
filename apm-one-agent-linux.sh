@@ -673,7 +673,8 @@ ReadExistingOneagentPath() {
 
 CheckIfOneagentExists() {
     OneagentExists="$(FindKeyValPairInFile "/etc/environment" "OENAGENT_VERISON")"
-    return $((OneagentExists))
+    Log "ONEAGENT EXISTS: $OneagentExists"
+    return $(OneagentExists)
 }
 
 CheckAgentInstallation() {
