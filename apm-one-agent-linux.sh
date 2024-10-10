@@ -296,6 +296,7 @@ SetupAgentConfigurations() {
 }
 
 DownloadAgentFiles() {
+    Log "DOWNLOADING AGENT FILES"
     if [ "$KUBERNETES_ENV" -eq 1 ]; then
         return
 
@@ -760,9 +761,9 @@ RegisterOneagentService() {
 }
 
 main() {
+    RedirectLogs
     CheckArgs $@
     CheckAgentInstallation $@
-    RedirectLogs
     CheckAndCreateOneagentUser
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
