@@ -1,18 +1,16 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_agent_nodejs/webhost/user_veera/Oct_09_2024/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://build.zohocorp.com/me/apm_insight_agent_nodejs/webhost/user_veera/Oct_09_2024/apm_insight_agent_nodejs.zip.sha256"
-JAVA_AGENT_DOWNLOAD_PATH="https://build.zohocorp.com/me/agent_java/webhost/pre_master/Oct_07_2024/apminsight_javaagent/site24x7/apminsight-javaagent.zip"
-JAVA_AGENT_CHECKSUM="https://build.zohocorp.com/me/agent_java/webhost/pre_master/Oct_07_2024/apminsight_javaagent/site24x7/apminsight-javaagent.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
+JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
+JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
 PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
 DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
 DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip"
+ONEAGENT_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm-one-agent-linux-files.zip"
 ONEAGENT_FILES_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm-one-agent-linux-files.zip.sha256"
-PYTHON_AGENT_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_agent_python/webhost/V1.5.2/Oct_01_2024/apm_insight_agent_python_wheels.zip"
-PYTHON_AGENT_CHECKSUM="https://build.zohocorp.com/me/apm_insight_agent_python/webhost/V1.5.2/Oct_01_2024/apm_insight_agent_python_wheels.zip.sha256"
 
 APMINSIGHT_ONEAGENT_PATH="/opt"
 AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
@@ -84,7 +82,7 @@ Log() {
 
 CheckRoot() {
     if [ "$(id -u)" -ne 0 ]; then
-        Log "OneAgent installer script is run without root privilege. Please run the script apm-one-agent-linux.sh with root privilege"
+        Log "OneAgent installer script is run without root privilege. Please run the script apm-one-agent-linux.sh with sudo"
         exit 1
     fi
 }
@@ -139,7 +137,6 @@ DetectKubernetes() {
 }
 
 SetupPreInstallationChecks() {
-    CheckRoot
     CheckBit
     CheckARM
     SetArchBasedDownloadPathExtension
@@ -296,7 +293,6 @@ SetupAgentConfigurations() {
 }
 
 DownloadAgentFiles() {
-    Log "DOWNLOADING AGENT FILES"
     if [ "$KUBERNETES_ENV" -eq 1 ]; then
         return
 
@@ -431,9 +427,9 @@ SetupOneagentFiles() {
     RemoveExistingOneagentFiles
     CreateOneAgentFiles
     mkdir -p "$TEMP_FOLDER_PATH"
+    cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    unzip -j apm_insight_oneagent_linux_files.zip -d "$AGENT_INSTALLATION_PATH/bin"
-    #ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -451,11 +447,12 @@ GiveFilePermissions() {
 
 RemoveExistingAgentFiles() {
     Log "REMOVING EXISTING APMINSIGHT AGENT FILES"
-    rm -rf "$AGENT_INSTALLATION_PATH/lib/*"
+    rm -rf "$AGENT_INSTALLATION_PATH/lib/"
 }
 
 CreateApmAgentFiles() {
     Log "CREATING APMINSIGHT AGENT FILES"
+    mkdir -p "$AGENT_INSTALLATION_PATH/lib"
     mkdir -p "$AGENT_INSTALLATION_PATH/lib/NODE"
     mkdir -p "$AGENT_INSTALLATION_PATH/lib/JAVA"
     mkdir -p "$AGENT_INSTALLATION_PATH/lib/PYTHON"
@@ -471,7 +468,7 @@ CreateApmAgentFiles() {
     mkdir -p "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE/logs"
 }
 
-SetupApmAgents() {
+SetupAgents() {
     SetupOneagentFiles
     if ! [ "$ONEAGENT_OPERATION"  = "install" ]; then
         Log "Ignoring APM agents Installation"
@@ -489,7 +486,6 @@ SetupApmAgents() {
 
 #CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
 LoadAgentForExistingJavaProcesses() {
-    Log "LOADING AGENT INTO EXISTING JAVA PROCESSES"
     if [ "$APMINSIGHT_LICENSEKEY" = "" ]; then
         Log "NO LICENSE KEY FOUND, LOADING AGENT TO EXISTING JAVA PROCESSES WILL BE SKIPPED"
         return
@@ -562,7 +558,7 @@ SetPreload() {
         mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libapminsightoneagentloader.so
         echo "/lib/libapminsightoneagentloader.so" >> "$PRELOAD_FILE_PATH"
     else
-        Log "No file found at "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so""
+        Log "oneagentloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
     fi
 
 }
@@ -582,6 +578,11 @@ MoveInstallationFiles() {
 }
 
 CompareAgentVersions() {
+    Log "Found existing ApminsightOneagentLinux of Version $EXISTING_ONEAGENT_VERSION"
+    EXISTING_AGENT_VERSION_NUM="$(echo "$EXISTING_ONEAGENT_VERSION" | sed 's/\.//g')"
+    EXISTING_AGENT_VERSION_NUM=$((EXISTING_AGENT_VERSION_NUM))
+    CURRENT_AGENT_VERSION_NUM="$(echo "$ONEAGENT_VERSION" | sed 's/\.//g')"
+    CURRENT_AGENT_VERSION_NUM=$((CURRENT_AGENT_VERSION_NUM))
     if [ "$EXISTING_AGENT_VERSION_NUM" -lt "$CURRENT_AGENT_VERSION_NUM" ]; then
         # ReadExistingOneagentPath
         # if [ -f "$EXISTING_ONEAGENTPATH/conf/oneagentconf.ini" ]; then
@@ -601,38 +602,17 @@ CompareAgentVersions() {
             else
                 exit 0
             fi
+        else
+            echo "Proceeding to Upgrade the existing Oneagent of version $EXISTING_ONEAGENT_VERSION"
+            return
         fi
-        return
+        
     elif [ "$EXISTING_AGENT_VERSION_NUM" -gt "$CURRENT_AGENT_VERSION_NUM" ]; then
-        Log "Skipping Installation as Oneagent with greater version already exists"
+        Log "Skipping ApminsightOneagentLinux $ONEAGENT_OPERATION as Oneagent with greater version already exists"
 
     else
-        Log "Skipping Installation as Oneagent with the current version already exists"
+        Log "Skipping ApminsightOneagentLinux $ONEAGENT_OPERATION as Oneagent with the current version already exists"
     exit 1
-    fi
-
-}
-
-checkVersion() {
-    ETC_ENV_FILEPATH="/etc/environment"
-    if [ -f $ETC_ENV_FILEPATH ]; then
-        while IFS= read -r line || [ -n "$line" ]; do
-            case "$line" in
-                *=*)
-                    key=$(echo "$line" | cut -d '=' -f 1 | sed 's/[[:space:]]*$//')
-                    if [ "$key" = "ONEAGENT_VERSION" ]; then
-                        EXISTING_ONEAGENT_VERSION=$(echo "$line" | cut -d '=' -f 2- | sed 's/^[[:space:]]*//')
-                        EXISTING_AGENT_VERSION_NUM="$(echo "$EXISTING_ONEAGENT_VERSION" | sed 's/\.//g')"
-                        EXISTING_AGENT_VERSION_NUM=$((EXISTING_AGENT_VERSION_NUM))
-                        CURRENT_AGENT_VERSION_NUM="$(echo "$ONEAGENT_VERSION" | sed 's/\.//g')"
-                        CURRENT_AGENT_VERSION_NUM=$((CURRENT_AGENT_VERSION_NUM))
-                    fi
-                    ;;
-            esac
-        done < "$ETC_ENV_FILEPATH"
-        if [ "$EXISTING_ONEAGENT_VERSION" ]; then
-            CompareAgentVersions
-        fi
     fi
 
 }
@@ -669,7 +649,7 @@ ReadExistingOneagentPath() {
 }
 
 CheckAgentInstallation() {
-    FindKeyValPairInFile "/etc/environment" "OENAGENT_VERISON" "EXISTING_ONEAGENT_VERSION"
+    FindKeyValPairInFile "/etc/environment" "ONEAGENT_VERSION" "EXISTING_ONEAGENT_VERSION"
     if [ "$1" = "-uninstall" ]; then
         Log "Uninstalling Oneagent...."
         ONEAGENT_OPERATION="uninstall"
@@ -683,7 +663,10 @@ CheckAgentInstallation() {
         #     exit 1
         # fi
         # sh "$EXISTING_ONEAGENTPATH/bin/uninstall.sh"
-        if ! [ -f "$AGENT_INSTALLATION_PATH/bin/uninstall.sh" ]; then
+        if [ -f "$AGENT_INSTALLATION_PATH/bin/uninstall.sh" ]; then
+            sh "$AGENT_INSTALLATION_PATH/bin/uninstall.sh"
+            exit 0
+        else
             Log "Cannot find uninstall.sh file at Oneagent installed location: $AGENT_INSTALLATION_PATH/bin/uninstall.sh"
             exit 1
         fi
@@ -692,14 +675,21 @@ CheckAgentInstallation() {
     elif [ "$1" = "-upgrade" ]; then
         Log "Upgrading Oneagent...."
         ONEAGENT_OPERATION="upgrade"
-       if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
-            Log "No existing Oneagent version found. Installing this version of Oneagent"
+        if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
+            Log "No existing Oneagent version found."
+            Log "Installing ApminsightOneagentLinux..."
             ONEAGENT_OPERATION="install"
+            return
         fi
+
     else
-        Log "Installing Oneagent...."
+        if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
+            Log "Installing ApminsightOneagentLinux..."
+            return
+        fi
     fi
-    checkVersion
+    #FOUND EXISTING ONEAGENT
+    CompareAgentVersions
 }
 
 CheckUser() {
@@ -754,13 +744,14 @@ RegisterOneagentService() {
 }
 
 main() {
+    CheckRoot
     RedirectLogs
     CheckArgs $@
     CheckAgentInstallation $@
     CheckAndCreateOneagentUser
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
-    SetupApmAgents
+    SetupAgents
     WriteToAgentConfFile
     RegisterOneagentVersion
     SetPreload
