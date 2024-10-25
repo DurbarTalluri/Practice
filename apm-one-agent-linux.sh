@@ -13,7 +13,7 @@ ONEAGENT_FILES_DOWNLOAD_PATH="http://10.63.38.133/oneagents/oneagent/apm_insight
 ONEAGENT_FILES_CHECKSUM="http://10.63.38.133/oneagents/oneagent/apm_insight_oneagent_linux_files.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH="http://10.63.38.133/oneagents/python/apm_insight_agent_python_wheels.zip"
 PYTHON_AGENT_CHECKSUM="http://10.63.38.133/oneagents/python/apm_insight_agent_python_wheels.zip.sha256"
-
+S247DATAEXPORTER_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_agent_data_service/webhost/version_1_6/Oct_25_2024/site24x7/linux/InstallDataExporter.sh"
 APMINSIGHT_ONEAGENT_PATH="/opt"
 AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
 PRELOAD_FILE_PATH="/etc/ld.so.preload"
@@ -386,11 +386,14 @@ InstallDotNetCoreAgent() {
 #INSTALL S247DATAEXPORTER
 InstallS247DataExporter() {
     Log "INSTALLING S247DATAEXPORTER"
+    if [ -z "$S247DATAEXPORTER_DOWNLOAD_PATH" ]; then
+        S247DATAEXPORTER_DOWNLOAD_PATH="https://staticdownloads.site24x7.""$APMINSIGHT_DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
+    fi
     EXPORTER_INSTALLATION_ARGUMENTS="-license.key "$APMINSIGHT_LICENSE_KEY" -apminsight.oneagent.conf.filepath "$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini""
-    DOWNLOAD_PATH="https://staticdownloads.site24x7.""$APMINSIGHT_DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
+    
     if [ "$BUNDLED" -eq 0 ] && [ "$KUBERNETES_ENV" -eq 0 ]; then
         cd "$TEMP_FOLDER_PATH"
-        wget -nv -O InstallDataExporter.sh "$DOWNLOAD_PATH"
+        wget -nv -O InstallDataExporter.sh "$S247DATAEXPORTER_DOWNLOAD_PATH"
         eval "sudo -E sh InstallDataExporter.sh "$EXPORTER_INSTALLATION_ARGUMENTS""
         cd "$CURRENT_DIRECTORY"
         return
