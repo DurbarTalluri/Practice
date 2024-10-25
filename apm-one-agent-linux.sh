@@ -1,18 +1,18 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_agent_nodejs/webhost/user_veera/Oct_09_2024/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://build.zohocorp.com/me/apm_insight_agent_nodejs/webhost/user_veera/Oct_09_2024/apm_insight_agent_nodejs.zip.sha256"
-JAVA_AGENT_DOWNLOAD_PATH="https://build.zohocorp.com/me/agent_java/webhost/pre_master/Oct_07_2024/apminsight_javaagent/site24x7/apminsight-javaagent.zip"
-JAVA_AGENT_CHECKSUM="https://build.zohocorp.com/me/agent_java/webhost/pre_master/Oct_07_2024/apminsight_javaagent/site24x7/apminsight-javaagent.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="http://10.63.38.133/oneagents/node/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="http://10.63.38.133/oneagents/node/apm_insight_agent_nodejs.zip.sha256"
+JAVA_AGENT_DOWNLOAD_PATH="http://10.63.38.133/oneagents/java/apminsight-javaagent.zip"
+JAVA_AGENT_CHECKSUM="http://10.63.38.133/oneagents/java/apminsight-javaagent.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
 PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
-DOTNETCORE_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/refs/heads/main/apminsight-dotnetcoreagent-linux.sh"
-DOTNETCORE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/refs/heads/main/apminsight-dotnetcoreagent-linux.sh.sha256"
+DOTNETCORE_AGENT_DOWNLOAD_PATH="http://10.63.38.133/oneagents/dotnetcore/apminsight-dotnetcoreagent-linux.sh"
+DOTNETCORE_AGENT_CHECKSUM="http://10.63.38.133/oneagents/dotnetcore/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip"
-ONEAGENT_FILES_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm-one-agent-linux-files.zip.sha256"
-PYTHON_AGENT_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_agent_python/webhost/V1.5.2/Oct_01_2024/apm_insight_agent_python_wheels.zip"
-PYTHON_AGENT_CHECKSUM="https://build.zohocorp.com/me/apm_insight_agent_python/webhost/V1.5.2/Oct_01_2024/apm_insight_agent_python_wheels.zip.sha256"
+ONEAGENT_FILES_DOWNLOAD_PATH="http://10.63.38.133/oneagents/oneagent/apm_insight_oneagent_linux_files.zip"
+ONEAGENT_FILES_CHECKSUM="http://10.63.38.133/oneagents/oneagent/apm_insight_oneagent_linux_files.zip.sha256"
+PYTHON_AGENT_DOWNLOAD_PATH="http://10.63.38.133/oneagents/python/apm_insight_agent_python_wheels.zip"
+PYTHON_AGENT_CHECKSUM="http://10.63.38.133/oneagents/python/apm_insight_agent_python_wheels.zip.sha256"
 
 APMINSIGHT_ONEAGENT_PATH="/opt"
 AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
@@ -429,11 +429,10 @@ SetupOneagentFiles() {
     RemoveExistingOneagentFiles
     CreateOneAgentFiles
     mkdir -p "$TEMP_FOLDER_PATH"
-    # cd "$TEMP_FOLDER_PATH"
-    # wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    # ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
-    # cd "$CURRENT_DIRECTORY"
-    unzip -j apm_insight_oneagent_linux_files.zip -d "$AGENT_INSTALLATION_PATH/bin"
+    cd "$TEMP_FOLDER_PATH"
+    wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
+    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    cd "$CURRENT_DIRECTORY"
 }
 
 #GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
@@ -599,14 +598,14 @@ CompareAgentVersions() {
             echo -n "An outdated version of oneagent exists. Would you like to install the new version?\nPlease enter y[es] or n[o]:"
             read upgrade
             if [ "$upgrade" = "y" ] || [ "$upgrade" = "yes" ]; then
-                echo "Proceeding to upgrade Oneagent"
+                Log "Proceeding to upgrade Oneagent"
                 ONEAGENT_OPERATION="upgrade"
                 return
             else
                 exit 0
             fi
         else
-            echo "Proceeding to Upgrade the existing Oneagent of version $EXISTING_ONEAGENT_VERSION"
+            Log "Proceeding to Upgrade the existing Oneagent of version $EXISTING_ONEAGENT_VERSION"
             return
         fi
         
