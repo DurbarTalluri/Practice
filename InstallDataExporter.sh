@@ -106,7 +106,7 @@ SetDownloadURL() {
     SetDownloadPath
     SetPackageZip
 
-    DOWNLOAD_URL="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip"
+    DOWNLOAD_URL="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/S247DataExporter.zip"
 
     PrintToTerminal "Info: Download URL set as $DOWNLOAD_URL"
 }
