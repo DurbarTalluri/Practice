@@ -1,7 +1,7 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="http://10.63.38.133/oneagents/node/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="http://10.63.38.133/oneagents/node/apm_insight_agent_nodejs.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_nodejs.zip.sha256"
 JAVA_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-javaagent.zip"
 JAVA_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-javaagent.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
