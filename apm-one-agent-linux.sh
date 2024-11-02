@@ -14,6 +14,7 @@ ONEAGENT_FILES_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practic
 PYTHON_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python_wheels.zip"
 PYTHON_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python_wheels.zip.sha256"
 S247DATAEXPORTER_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/InstallDataExporter.sh"
+
 APMINSIGHT_ONEAGENT_PATH="/opt"
 AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
 PRELOAD_FILE_PATH="/etc/ld.so.preload"
@@ -70,10 +71,20 @@ CheckArgs() {
 RedirectLogs() {
     # if [ -n "$EXISTING_ONEAGENTPATH" ] && [ -f "$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log" ]; then
     #     AGENT_STARTUP_LOGFILE_PATH="$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log"
+    EXISTING_AGENT_LOGFILE_PATH=""
     if [ -f "$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log" ]; then
-        AGENT_STARTUP_LOGFILE_PATH="$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log"
-    elif [ -f "$AGENT_INSTALLATION_PATH/apm-one-agent-installation.log" ]; then
-        AGENT_STARTUP_LOGFILE_PATH="$AGENT_INSTALLATION_PATH/apm-one-agent-installation.log"
+        EXISTING_AGENT_LOGFILE_PATH="$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log"
+    elif [ -f "/opt/site24x7/apm-one-agent-installation.log" ]; then
+        EXISTING_AGENT_LOGFILE_PATH="/opt/site24x7/apm-one-agent-installation.log"
+    fi
+    file_size=$(stat -c%s "$EXISTING_AGENT_LOGFILE_PATH")
+    if [ -n "$EXISTING_AGENT_LOGFILE_PATH" ]; then
+        if [ "$file_size" -gt 1048576 ]; then
+            echo "$EXISTING_AGENT_LOGFILE_PATH is larger than 1 MB. Redirecting the logs to a new file"
+            mv "$EXISTING_AGENT_LOGFILE_PATH" "/opt/site24x7/apm-one-agent-installation.log.1"
+        else
+            AGENT_STARTUP_LOGFILE_PATH="$EXISTING_AGENT_LOGFILE_PATH"
+        fi
     fi
     exec >>"$AGENT_STARTUP_LOGFILE_PATH" 2>&1
 }
@@ -386,14 +397,11 @@ InstallDotNetCoreAgent() {
 #INSTALL S247DATAEXPORTER
 InstallS247DataExporter() {
     Log "INSTALLING S247DATAEXPORTER"
-    if [ -z "$S247DATAEXPORTER_DOWNLOAD_PATH" ]; then
-        S247DATAEXPORTER_DOWNLOAD_PATH="https://staticdownloads.site24x7.""$APMINSIGHT_DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
-    fi
     EXPORTER_INSTALLATION_ARGUMENTS="-license.key "$APMINSIGHT_LICENSE_KEY" -apminsight.oneagent.conf.filepath "$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini""
-    
+    DOWNLOAD_PATH="https://staticdownloads.site24x7.""$APMINSIGHT_DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
     if [ "$BUNDLED" -eq 0 ] && [ "$KUBERNETES_ENV" -eq 0 ]; then
         cd "$TEMP_FOLDER_PATH"
-        wget -nv -O InstallDataExporter.sh "$S247DATAEXPORTER_DOWNLOAD_PATH"
+        wget -nv -O InstallDataExporter.sh "$DOWNLOAD_PATH"
         eval "sudo -E sh InstallDataExporter.sh "$EXPORTER_INSTALLATION_ARGUMENTS""
         cd "$CURRENT_DIRECTORY"
         return
@@ -428,26 +436,13 @@ CreateOneAgentFiles() {
 }
 
 SetupOneagentFiles() {
-    ValidateChecksumAndInstallOneagentAgent() {
-        Log "Checksum validation for the file $1"
-        file="$1"
-        checksumVerificationLink="$2"
-        destinationpath="$3"
-        checksumfilename="$file-checksum"
-        wget -nv -O "$checksumfilename" $checksumVerificationLink
-        Originalchecksumvalue="$(cat "$checksumfilename")"
-        Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
-        if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
-            unzip -j "$file" -d "$destinationpath"
-        fi
-    }
     Log "DELETING EXISTING ONEAGENT FILES IF ANY"
     RemoveExistingOneagentFiles
     CreateOneAgentFiles
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallOneagentAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -691,13 +686,14 @@ CheckAgentInstallation() {
         exit 0
 
     elif [ "$1" = "-upgrade" ]; then
-        Log "Upgrading Oneagent...."
         ONEAGENT_OPERATION="upgrade"
         if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
             Log "No existing Oneagent version found."
             Log "Installing ApminsightOneagentLinux..."
             ONEAGENT_OPERATION="install"
             return
+        else
+            Log "Upgrading ApminsightOneagentLinux..."
         fi
 
     else
@@ -710,32 +706,32 @@ CheckAgentInstallation() {
     CompareAgentVersions
 }
 
-CheckUser() {
-    if !(id "apminsight-oneagent-user" >/dev/null 2>&1); then
-        Log "User "apminsight-oneagent-user" does not exist."
+ApminsightOneagentUserExists() {
+    if id "apminsight-oneagent-user" >/dev/null 2>&1; then
         return 0
     fi
     return 1
 }
 
-CheckAndGrantSudoPermissionForApmUser() {
+CheckAndGrantSudoPermissionForApminsightUser() {
     if groups apminsight-oneagent-user | grep -q "\bsudo\b"; then
         Log "User 'apminsight-oneagent-user' already has sudo privileges."
     else
         usermod -aG sudo apminsight-oneagent-user
     fi
 }
-CheckAndCreateOneagentUser() {
-    if id apminsight-oneagent-user >/dev/null 2>&1; then
+CheckAndCreateApminsightOneagentUser() {
+    if ApminsightOneagentUserExists; then
         Log "User 'apminsight-oneagent-user' already exists."
     else
+        Log "Creating apminsight-oneagent-user"
         useradd --system --no-create-home --no-user-group apminsight-oneagent-user
-        if ! CheckUser; then
-            Log "Aborting Apminsight Oneagent Installation"
+        if ! ApminsightOneagentUserExists; then
+            Log "Could not create apminsight-oneagent-user, Aborting Apminsight Oneagent Installation"
             exit 1
         fi
     fi
-    CheckAndGrantSudoPermissionForApmUser
+    CheckAndGrantSudoPermissionForApminsightUser
 }
 
 CheckAndRemoveExistingService() {
@@ -766,7 +762,7 @@ main() {
     RedirectLogs
     CheckArgs $@
     CheckAgentInstallation $@
-    CheckAndCreateOneagentUser
+    CheckAndCreateApminsightOneagentUser
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
     SetupAgents
@@ -779,3 +775,4 @@ main() {
     RemoveInstallationFiles
     }
 main "$@"
+
