@@ -435,6 +435,20 @@ CreateOneAgentFiles() {
     touch "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
 }
 
+ValidateChecksumAndInstallOneagent() {
+    Log "Checksum validation for the file $1"
+    file="$1"
+    checksumVerificationLink="$2"
+    destinationpath="$3"
+    checksumfilename="$file-checksum"
+    wget -nv -O "$checksumfilename" $checksumVerificationLink
+    Originalchecksumvalue="$(cat "$checksumfilename")"
+    Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
+    if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
+        unzip -j "$file" -d "$destinationpath"
+    fi
+}
+
 SetupOneagentFiles() {
     Log "DELETING EXISTING ONEAGENT FILES IF ANY"
     RemoveExistingOneagentFiles
@@ -442,7 +456,11 @@ SetupOneagentFiles() {
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    ValidateChecksumAndInstallOneagent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libapminsightoneagentloader.so
+    if ! [ -f "/etc/ld.so.preload" ]; then
+        touch "/etc/ld.so.preload"
+    fi
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -562,18 +580,6 @@ WriteToAgentConfFile() {
     else
         Log "Error creating file oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
     fi
-}
-
-#CREATE /etc/ld.so.preload FILE AND POPULATE IT
-SetPreload() {
-    Log "SETTING PRELOAD"
-    if [ -f "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" ]; then
-        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libapminsightoneagentloader.so
-        echo "/lib/libapminsightoneagentloader.so" >> "$PRELOAD_FILE_PATH"
-    else
-        Log "oneagentloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
-    fi
-
 }
 
 RemoveInstallationFiles() {
@@ -752,9 +758,9 @@ RegisterOneagentService() {
         exit 1
     fi
     cp "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" /etc/systemd/system/
-    systemctl enable apminsight-oneagent-linux.service
-    systemctl daemon-reload
-    systemctl restart apminsight-oneagent-linux.service
+    Log "$(systemctl enable apminsight-oneagent-linux.service 2>&1)"
+    Log "$(systemctl daemon-reload 2>&1)"
+    Log "$(systemctl restart apminsight-oneagent-linux.service 2>&1)"
 }
 
 main() {
@@ -768,11 +774,9 @@ main() {
     SetupAgents
     WriteToAgentConfFile
     RegisterOneagentVersion
-    SetPreload
     GiveFilePermissions
     RegisterOneagentService
     MoveInstallationFiles
     RemoveInstallationFiles
     }
 main "$@"
-
