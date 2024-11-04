@@ -457,10 +457,6 @@ SetupOneagentFiles() {
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
     ValidateChecksumAndInstallOneagent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
-    mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libapminsightoneagentloader.so
-    if ! [ -f "/etc/ld.so.preload" ]; then
-        touch "/etc/ld.so.preload"
-    fi
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -580,6 +576,18 @@ WriteToAgentConfFile() {
     else
         Log "Error creating file oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
     fi
+}
+
+#CREATE /etc/ld.so.preload FILE AND POPULATE IT
+SetPreload() {
+    Log "SETTING PRELOAD"
+    if [ -f "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" ]; then
+        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libapminsightoneagentloader.so
+        echo "/lib/libapminsightoneagentloader.so" >> "$PRELOAD_FILE_PATH"
+    else
+        Log "oneagentloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
+    fi
+
 }
 
 RemoveInstallationFiles() {
@@ -774,6 +782,7 @@ main() {
     SetupAgents
     WriteToAgentConfFile
     RegisterOneagentVersion
+    SetPreload
     GiveFilePermissions
     RegisterOneagentService
     MoveInstallationFiles
