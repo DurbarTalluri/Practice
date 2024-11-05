@@ -771,9 +771,49 @@ RegisterOneagentService() {
     Log "$(systemctl restart apminsight-oneagent-linux.service 2>&1)"
 }
 
+checkGlibcCompatibility() {
+    GLIBC_VERSION="$(ldd --version | awk 'NR==1{ print $NF }')"
+    GLIBC_VERSION_MAJ=$(echo "$GLIBC_VERSION" | sed 's/\..*//')
+    GLIBC_VERSION_MIN=$(echo "$GLIBC_VERSION" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
+    GLIBC_VERSION_COMPATIBLE_MAJ=$(echo "$GLIBC_VERSION_COMPATIBLE" | sed 's/\..*//')
+    GLIBC_VERSION_COMPATIBLE_MIN=$(echo "$GLIBC_VERSION_COMPATIBLE" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
+    if [ "$GLIBC_VERSION_MAJ" -lt "$GLIBC_VERSION_COMPATIBLE_MAJ" ]; then
+        Log "GLIBC VERSION INCOMPATIBLE"
+        exit 1
+    elif [ "$GLIBC_VERSION_MAJ" -eq "$GLIBC_VERSION_COMPATIBLE_MAJ" ]; then
+        if [ "$GLIBC_VERSION_MIN" -lt "$GLIBC_VERSION_COMPATIBLE_MIN" ]; then
+            Log "GLIBC VERSION INCOMPATIBLE"
+            exit 1
+        fi
+    fi
+}
+
+checkGccCompatibility() {
+    GCC_VERSION="$(gcc --version | awk 'NR==1{ print $NF }')"
+    GCC_VERSION_MAJ=$(echo "$GCC_VERSION" | sed 's/\..*//')
+    GCC_VERSION_MIN=$(echo "$GCC_VERSION" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
+    GCC_VERSION_COMPATIBLE_MAJ=$(echo "$GCC_VERSION_COMPATIBLE" | sed 's/\..*//')
+    GCC_VERSION_COMPATIBLE_MIN=$(echo "$GCC_VERSION_COMPATIBLE" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
+    if [ "$GCC_VERSION_MAJ" -lt "$GCC_VERSION_COMPATIBLE_MAJ" ]; then
+        Log "GCC VERSION INCOMPATIBLE"
+        exit 1
+    elif [ "$GCC_VERSION_MAJ" -eq "$GCC_VERSION_COMPATIBLE_MAJ" ]; then
+        if [ "$GCC_VERSION_MIN" -lt "$GCC_VERSION_COMPATIBLE_MIN" ]; then
+            Log "GCC VERSION INCOMPATIBLE"
+            exit 1
+        fi
+    fi
+}
+
+checkCompatibility() {
+    checkGlibcCompatibility
+    checkGccCompatibility
+}
+
 main() {
     CheckRoot
     RedirectLogs
+    checkCompatibility
     CheckArgs $@
     CheckAgentInstallation $@
     CheckAndCreateApminsightOneagentUser
