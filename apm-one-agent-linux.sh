@@ -423,8 +423,8 @@ InstallS247DataExporter() {
 
 RemoveExistingOneagentFiles() {
     Log "Removing existing Oneagent binaries and files"
-    rm -rf "$AGENT_INSTALLATION_PATH/bin/*"
-    Log "$AGENT_INSTALLATION_PATH/bin/*"
+    #rm -rf "$AGENT_INSTALLATION_PATH/bin/*"
+    find "AGENT_INSTALLATION_PATH/bin" -mindepth 1 -delete
     Log "$(ls "$AGENT_INSTALLATION_PATH/bin/" 2>&1)"
     sed -i '/libapminsightoneagentloader.so$/d' /etc/ld.so.preload
     rm -f /lib/libapminsightoneagentloader.so
