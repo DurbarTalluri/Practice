@@ -424,6 +424,7 @@ InstallS247DataExporter() {
 RemoveExistingOneagentFiles() {
     Log "Removing existing Oneagent binaries and files"
     rm -rf "$AGENT_INSTALLATION_PATH/bin/*"
+    Log "$AGENT_INSTALLATION_PATH/bin/*"
     Log "$(ls "$AGENT_INSTALLATION_PATH/bin/" 2>&1)"
     sed -i '/libapminsightoneagentloader.so$/d' /etc/ld.so.preload
     rm -f /lib/libapminsightoneagentloader.so
@@ -756,16 +757,16 @@ CheckAndCreateApminsightOneagentUser() {
 CheckAndRemoveExistingService() {
     if systemctl list-units --type=service --all | grep -q "site24x7apmoneagent.service"; then
         Log "Found an existing site24x7apmoneagent service> Removing the service"
-        systemctl stop site24x7apmoneagent.service
-        systemctl disable site24x7apmoneagent.service
+        Log "$(systemctl stop site24x7apmoneagent.service 2>&1)"
+        Log "$(systemctl disable site24x7apmoneagent.service 2>&1)"
     fi
     rm -f /etc/systemd/system/site24x7apmoneagent.service
-    systemctl daemon-reload
+    Log "$(systemctl daemon-reload 2>&1)"
 }
 
 RegisterOneagentService() {
     Log "Registering site24x7apmoneagent service"
-    CheckAndRemoveExistingService()
+    CheckAndRemoveExistingService
     if ! [ -f "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" ]; then
         Log "Cannot find Oneagent service binary. Skipping the service start"
         exit 1
