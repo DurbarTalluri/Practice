@@ -1,38 +1,34 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_nodejs.zip.sha256"
-JAVA_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-javaagent.zip"
-JAVA_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-javaagent.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
+JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
+JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
 PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
-DOTNETCORE_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.sh"
-DOTNETCORE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.sh.sha256"
+DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
+DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip"
-ONEAGENT_FILES_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip.sha256"
-PYTHON_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python_wheels.zip"
-PYTHON_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python_wheels.zip.sha256"
-S247DATAEXPORTER_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/InstallDataExporter.sh"
+ONEAGENT_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm-one-agent-linux-files.zip"
+ONEAGENT_FILES_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm-one-agent-linux-files.zip.sha256"
 
+CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 APMINSIGHT_ONEAGENT_PATH="/opt"
 AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
 PRELOAD_FILE_PATH="/etc/ld.so.preload"
-AGENT_STARTUP_LOGFILE_PATH="apm-one-agent-installation.log"
-STARTUP_CONF_FILEPATH="./oneagentconf.ini"
+AGENT_STARTUP_LOGFILE_PATH="$CURRENT_DIRECTORY/apm-one-agent-installation.log"
+STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/oneagentconf.ini"
 
 KUBERNETES_ENV=0
 BUNDLED=0
 APMINSIGHT_LICENSEKEY=""
 APMINSIGHT_LICENSE_KEY=""
-CURRENT_DIRECTORY=$(pwd)
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 AGENT_CONF_STR=""
 APMINSIGHT_HOST=""
 APMINSIGHT_PORT=""
 APMINSIGHT_HOST_URL=""
 APMINSIGHT_PROXY_URL=""
-PROXY_STR=""
 APMINSIGHT_DOMAIN="com"
 PYTHON_AGENT_PATH=""
 APMINSIGHT_AGENT_START_TIME=""
@@ -52,6 +48,8 @@ ARCH_BASED_DOWNLOAD_PATH_EXTENSION=""
 APMSIGHT_PROTOCOL="http"
 ONEAGENT_VERSION="1.0.0"
 ONEAGENT_OPERATION="install"
+GLIBC_VERSION_COMPATIBLE="2.23"
+GCC_VERSION_COMPATIBLE="5.4"
 
 displayHelp() {
     echo "Usage: $0 [option] [arguments]\n \n Options:\n"
@@ -247,7 +245,11 @@ ReadConfigFromArgs() {
         shift 1
     done
     if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
-        Log "Unable to find License Key from commandline arguments. Please run the apm-one-agent-linux.sh script again providing License Key or set License Key in the configuration file located at $AGENT_INSTALLATION_PATH in the format APMINSIGHT_LICENSEKEY=<Your License Key>"
+        Log "Unable to find License Key from commandline arguments. Please run the apm-one-agent-linux.sh script again providing License Key or set License Key in the configuration file located at $AGENT_INSTALLATION_PATH/conf/oneagentconf.ini"
+        exit 1
+    elif [ -z "$AGENT_KEY" ]; then
+        Log "No AGENT_KEY found.. Termination ApminsightOneagent Installation"
+        exit 1 
     fi
 }
 
@@ -265,7 +267,6 @@ BuildApmHostUrl() {
 
 SetProxy() {
     if [ -n "$APMINSIGHT_PROXY_URL" ]; then
-        PROXY_STR="$(echo "https://temp-mail.org/en/" | sed 's/:\/\//\n/g' | sed -n '2p')"
         export http_proxy=$APMINSIGHT_PROXY_URL
         export https_proxy=$APMINSIGHT_PROXY_URL
         export ftp_proxy=$APMINSIGHT_PROXY_URL
@@ -501,14 +502,14 @@ SetupAgents() {
         Log "Ignoring APM agents Installation"
         return
     fi
-    RemoveExistingAgentFiles
-    CreateApmAgentFiles
-    DownloadAgentFiles
-    InstallNodeJSDependencies
-    InstallPythonDependencies
-    InstallDotNetCoreAgent
-    InstallS247DataExporter
-    LoadAgentForExistingJavaProcesses
+    # RemoveExistingAgentFiles
+    # CreateApmAgentFiles
+    # DownloadAgentFiles
+    # InstallNodeJSDependencies
+    # InstallPythonDependencies
+    # InstallDotNetCoreAgent
+    # InstallS247DataExporter
+    # LoadAgentForExistingJavaProcesses
 }
 
 #CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
@@ -523,7 +524,7 @@ LoadAgentForExistingJavaProcesses() {
     # Iterate over each PID and run the command with java -jar apminsight-javaagent.jar -start <pid>
     DYNAMIC_LOAD_ARGUMENTS="-lk "$APMINSIGHT_LICENSE_KEY""
     if [ "$APMINSIGHT_PROXY_URL" != "" ]; then
-        DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -ap $PROXY_STR"
+        DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -ap $APMINSIGHT_PROXY_URL"
     fi
     if [ "$APMINSIGHT_HOST_URL" != "" ]; then
         DYNAMIC_LOAD_ARGUMENTS="$DYNAMIC_LOAD_ARGUMENTS -aph $APMINSIGHT_HOST_URL"
@@ -749,26 +750,26 @@ CheckAndCreateApminsightOneagentUser() {
 }
 
 CheckAndRemoveExistingService() {
-    if systemctl list-units --type=service --all | grep -q "apminsight-oneagent-linux.service"; then
-        Log "Found an existing apminsight-oneagent-linux service> Removing the service"
-        systemctl stop apminsight-oneagent-linux.service
-        systemctl disable apminsight-oneagent-linux.service
+    if systemctl list-units --type=service --all | grep -q "site24x7apmoneagent.service"; then
+        Log "Found an existing site24x7apmoneagent service> Removing the service"
+        systemctl stop site24x7apmoneagent.service
+        systemctl disable site24x7apmoneagent.service
     fi
-    rm -f /etc/systemd/system/apminsight-oneagent-linux.service
+    rm -f /etc/systemd/system/site24x7apmoneagent.service
     systemctl daemon-reload
 }
 
 RegisterOneagentService() {
-    Log "Registering Apminsight-Oneagent-Linux service"
+    Log "Registering site24x7apmoneagent service"
     CheckAndRemoveExistingService()
-    if ! [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" ]; then
+    if ! [ -f "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" ]; then
         Log "Cannot find Oneagent service binary. Skipping the service start"
         exit 1
     fi
-    cp "$AGENT_INSTALLATION_PATH/bin/apminsight-oneagent-linux.service" /etc/systemd/system/
-    Log "$(systemctl enable apminsight-oneagent-linux.service 2>&1)"
+    cp "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" /etc/systemd/system/
+    Log "$(systemctl enable site24x7apmoneagent.service 2>&1)"
     Log "$(systemctl daemon-reload 2>&1)"
-    Log "$(systemctl restart apminsight-oneagent-linux.service 2>&1)"
+    Log "$(systemctl restart site24x7apmoneagent.service 2>&1)"
 }
 
 checkGlibcCompatibility() {
