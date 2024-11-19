@@ -814,7 +814,17 @@ checkCompatibility() {
     checkGccCompatibility
 }
 
+checkForRunningProcess() {
+    PS_OUT="$(ps -ef | grep -e 'apm-one-agent-linux.sh' | grep -v 'grep')"
+    if ![ "$PS_OUT" = "" ]; then {
+        Log "Existing Apminsight Oneagent installlation is detected, exiting the process"
+        exit 0
+    }
+    fi
+}
+
 main() {
+    checkForRunningProcess
     CheckRoot
     RedirectLogs
     checkCompatibility
