@@ -467,8 +467,8 @@ SetupOneagentFiles() {
 #GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
 GiveFilePermissions() {
     Log "GIVING FILE PERMISSIONS"
-    chown -R apminsight-oneagent-user "$AGENT_INSTALLATION_PATH"
-    chmod 777 -R "$APMINSIGHT_ONEAGENT_PATH"
+    chown -R apminsight-oneagent-user:site24x7-group "$AGENT_INSTALLATION_PATH"
+    chmod 777 -R "$AGENT_INSTALLATION_PATH"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/bin"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
     chmod 777 -R "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
@@ -732,10 +732,10 @@ ApminsightOneagentUserExists() {
 }
 
 CheckAndGrantSudoPermissionForApminsightUser() {
-    if groups apminsight-oneagent-user | grep -q "\bsudo\b"; then
-        Log "User 'apminsight-oneagent-user' already has sudo privileges."
+    if groups apminsight-oneagent-user | grep -q "\bsite24x7-group\b"; then
+        Log "User 'apminsight-oneagent-user' already found in site24x7-group."
     else
-        usermod -aG sudo apminsight-oneagent-user
+        usermod -aG site24x7-group apminsight-oneagent-user
     fi
 }
 CheckAndCreateApminsightOneagentUser() {
@@ -749,8 +749,7 @@ CheckAndCreateApminsightOneagentUser() {
             exit 1
         fi
     fi
-    #CheckAndGrantSudoPermissionForApminsightUser
-    usermod -aG site24x7-group apminsight-oneagent-user
+    CheckAndGrantSudoPermissionForApminsightUser
 }
 
 CheckAndRemoveExistingService() {
@@ -815,7 +814,17 @@ checkCompatibility() {
     checkGccCompatibility
 }
 
+checkForRunningProcess() {
+    PS_OUT="$(ps -ef | grep -e 'apm-one-agent-linux.sh' | grep -v 'grep')"
+    if ![ "$PS_OUT" = "" ]; then {
+        Log "Existing Apminsight Oneagent installlation is detected, exiting the process"
+        exit 0
+    }
+    fi
+}
+
 main() {
+    checkForRunningProcess
     CheckRoot
     RedirectLogs
     checkCompatibility
