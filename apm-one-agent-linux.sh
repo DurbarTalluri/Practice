@@ -423,9 +423,7 @@ InstallS247DataExporter() {
 
 RemoveExistingOneagentFiles() {
     Log "Removing existing Oneagent binaries and files"
-    #rm -rf "$AGENT_INSTALLATION_PATH/bin/*"
     find "$AGENT_INSTALLATION_PATH/bin" -mindepth 1 -delete
-    Log "$(ls "$AGENT_INSTALLATION_PATH/bin/" 2>&1)"
     sed -i '/libapminsightoneagentloader.so$/d' /etc/ld.so.preload
     rm -f /lib/libapminsightoneagentloader.so
 }
@@ -507,14 +505,14 @@ SetupAgents() {
         Log "Ignoring APM agents Installation"
         return
     fi
-    # RemoveExistingAgentFiles
-    # CreateApmAgentFiles
-    # DownloadAgentFiles
-    # InstallNodeJSDependencies
-    # InstallPythonDependencies
-    # InstallDotNetCoreAgent
-    # InstallS247DataExporter
-    # LoadAgentForExistingJavaProcesses
+    RemoveExistingAgentFiles
+    CreateApmAgentFiles
+    DownloadAgentFiles
+    InstallNodeJSDependencies
+    InstallPythonDependencies
+    InstallDotNetCoreAgent
+    InstallS247DataExporter
+    LoadAgentForExistingJavaProcesses
 }
 
 #CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
