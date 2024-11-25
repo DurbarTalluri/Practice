@@ -435,6 +435,20 @@ CreateOneAgentFiles() {
     touch "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
 }
 
+ValidateChecksumAndInstallOneagent() {
+    Log "Checksum validation for the file $1"
+    file="$1"
+    checksumVerificationLink="$2"
+    destinationpath="$3"
+    checksumfilename="$file-checksum"
+    wget -nv -O "$checksumfilename" $checksumVerificationLink
+    Originalchecksumvalue="$(cat "$checksumfilename")"
+    Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
+    if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
+        unzip -j "$file" -d "$destinationpath"
+    fi
+}
+
 SetupOneagentFiles() {
     Log "DELETING EXISTING ONEAGENT FILES IF ANY"
     RemoveExistingOneagentFiles
@@ -442,7 +456,7 @@ SetupOneagentFiles() {
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    ValidateChecksumAndInstallOneagent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
 
