@@ -1,19 +1,16 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_nodejs.zip.sha256"
-JAVA_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-javaagent.zip"
-JAVA_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-javaagent.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
+JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
+JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
 PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
-DOTNETCORE_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.sh"
-DOTNETCORE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.sh.sha256"
+DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
+DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip"
-ONEAGENT_FILES_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip.sha256"
-PYTHON_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python_wheels.zip"
-PYTHON_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python_wheels.zip.sha256"
-S247DATAEXPORTER_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/InstallDataExporter.sh"
+ONEAGENT_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm-one-agent-linux-files.zip"
+ONEAGENT_FILES_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm-one-agent-linux-files.zip.sha256"
 
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 APMINSIGHT_ONEAGENT_PATH="/opt"
@@ -248,11 +245,7 @@ ReadConfigFromArgs() {
         shift 1
     done
     if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
-        Log "Unable to find License Key from commandline arguments. Please run the apm-one-agent-linux.sh script again providing License Key or set License Key in the configuration file located at $AGENT_INSTALLATION_PATH/conf/oneagentconf.ini"
-        exit 1
-    elif [ -z "$AGENT_KEY" ]; then
-        Log "No AGENT_KEY found.. Termination ApminsightOneagent Installation"
-        exit 1 
+        Log "Unable to find License Key from commandline arguments. Please run the apm-one-agent-linux.sh script again providing License Key or set License Key in the configuration file located at $AGENT_INSTALLATION_PATH in the format APMINSIGHT_LICENSEKEY=<Your License Key>"
     fi
 }
 
@@ -439,20 +432,6 @@ CreateOneAgentFiles() {
     touch "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
 }
 
-ValidateChecksumAndInstallOneagent() {
-    Log "Checksum validation for the file $1"
-    file="$1"
-    checksumVerificationLink="$2"
-    destinationpath="$3"
-    checksumfilename="$file-checksum"
-    wget -nv -O "$checksumfilename" $checksumVerificationLink
-    Originalchecksumvalue="$(cat "$checksumfilename")"
-    Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
-    if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
-        unzip -j "$file" -d "$destinationpath"
-    fi
-}
-
 SetupOneagentFiles() {
     Log "DELETING EXISTING ONEAGENT FILES IF ANY"
     RemoveExistingOneagentFiles
@@ -460,14 +439,14 @@ SetupOneagentFiles() {
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallOneagent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
 
 #GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
 GiveFilePermissions() {
     Log "GIVING FILE PERMISSIONS"
-    chown -R apminsight-oneagent-user:site24x7-group "$AGENT_INSTALLATION_PATH"
+    chown -R site24x7-user:site24x7-group "$AGENT_INSTALLATION_PATH"
     chmod 777 -R "$AGENT_INSTALLATION_PATH"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/bin"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
@@ -724,32 +703,32 @@ CheckAgentInstallation() {
     CompareAgentVersions
 }
 
-ApminsightOneagentUserExists() {
-    if id "apminsight-oneagent-user" >/dev/null 2>&1; then
+Site24x7UserExists() {
+    if id "site24x7-user" >/dev/null 2>&1; then
         return 0
     fi
     return 1
 }
 
-CheckAndGrantSudoPermissionForApminsightUser() {
-    if groups apminsight-oneagent-user | grep -q "\bsite24x7-group\b"; then
-        Log "User 'apminsight-oneagent-user' already found in site24x7-group."
+CheckAndAddSite24x7UserToSite24x7Group() {
+    if groups site24x7-user | grep -q "\bsite24x7-group\b"; then
+        Log "User 'site24x7-user' already found in site24x7-group."
     else
-        usermod -aG site24x7-group apminsight-oneagent-user
+        usermod -aG site24x7-group site24x7-user
     fi
 }
-CheckAndCreateApminsightOneagentUser() {
-    if ApminsightOneagentUserExists; then
-        Log "User 'apminsight-oneagent-user' already exists."
+CheckAndCreateSite24x7User() {
+    if Site24x7UserExists; then
+        Log "User 'site24x7-user' already exists."
     else
-        Log "Creating apminsight-oneagent-user"
-        useradd --system --no-create-home --no-user-group apminsight-oneagent-user
-        if ! ApminsightOneagentUserExists; then
-            Log "Could not create apminsight-oneagent-user, Aborting Apminsight Oneagent Installation"
+        Log "Creating site24x7-user"
+        useradd --system --no-create-home --no-user-group site24x7-user
+        if ! Site24x7UserExists; then
+            Log "Could not create site24x7-user, Aborting Apminsight Oneagent Installation"
             exit 1
         fi
     fi
-    CheckAndGrantSudoPermissionForApminsightUser
+    CheckAndAddSite24x7UserToSite24x7Group
 }
 
 CheckAndRemoveExistingService() {
@@ -814,23 +793,13 @@ checkCompatibility() {
     checkGccCompatibility
 }
 
-checkForRunningProcess() {
-    PS_OUT="$(ps -ef | grep -e 'apm-one-agent-linux.sh' | grep -v 'grep')"
-    if ![ "$PS_OUT" = "" ]; then {
-        Log "Existing Apminsight Oneagent installlation is detected, exiting the process"
-        exit 0
-    }
-    fi
-}
-
 main() {
-    checkForRunningProcess
     CheckRoot
     RedirectLogs
     checkCompatibility
     CheckArgs $@
     CheckAgentInstallation $@
-    CheckAndCreateApminsightOneagentUser
+    CheckAndCreateSite24x7User
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
     SetupAgents
