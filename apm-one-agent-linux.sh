@@ -49,7 +49,7 @@ IS_32BIT=$BOOLEAN_FALSE
 IS_64BIT=$BOOLEAN_FALSE
 ARCH_BASED_DOWNLOAD_PATH_EXTENSION=""
 APMSIGHT_PROTOCOL="http"
-ONEAGENT_VERSION="1.0.0"
+APMINSIGHT_ONEAGENT_VERSION="1.0.0"
 ONEAGENT_OPERATION="install"
 GLIBC_VERSION_COMPATIBLE="2.23"
 GCC_VERSION_COMPATIBLE="5.4"
@@ -420,8 +420,8 @@ InstallS247DataExporter() {
 RemoveExistingOneagentFiles() {
     Log "Removing existing Oneagent binaries and files"
     find "$AGENT_INSTALLATION_PATH/bin" -mindepth 1 -delete
-    sed -i '/libapminsightoneagentloader.so$/d' /etc/ld.so.preload
-    rm -f /lib/libapminsightoneagentloader.so
+    sed -i '/libsite24x7apmoneagentloader.so$/d' /etc/ld.so.preload
+    rm -f /lib/libsite24x7apmoneagentloader.so
 }
 
 #CREATE AGENT FOLDERS IN USER MACHINE AND STORE THE DOWNLOADED AGENT FILES 
@@ -469,7 +469,7 @@ GiveFilePermissions() {
     chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
     chmod 777 -R "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
     chmod 644 "$PRELOAD_FILE_PATH"
-    chmod 644 "/lib/libapminsightoneagentloader.so"
+    chmod 644 "/lib/libsite24x7apmoneagentloader.so"
 }
 
 RemoveExistingAgentFiles() {
@@ -582,8 +582,8 @@ WriteToAgentConfFile() {
 SetPreload() {
     Log "SETTING PRELOAD"
     if [ -f "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" ]; then
-        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libapminsightoneagentloader.so
-        echo "/lib/libapminsightoneagentloader.so" >> "$PRELOAD_FILE_PATH"
+        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libsite24x7apmoneagentloader.so
+        echo "/lib/libsite24x7apmoneagentloader.so" >> "$PRELOAD_FILE_PATH"
     else
         Log "oneagentloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
     fi
@@ -605,10 +605,10 @@ MoveInstallationFiles() {
 }
 
 CompareAgentVersions() {
-    Log "Found existing ApminsightOneagentLinux of Version $EXISTING_ONEAGENT_VERSION"
-    EXISTING_AGENT_VERSION_NUM="$(echo "$EXISTING_ONEAGENT_VERSION" | sed 's/\.//g')"
+    Log "Found existing ApminsightOneagentLinux of Version $EXISTING_APMINSIGHT_ONEAGENT_VERSION"
+    EXISTING_AGENT_VERSION_NUM="$(echo "$EXISTING_APMINSIGHT_ONEAGENT_VERSION" | sed 's/\.//g')"
     EXISTING_AGENT_VERSION_NUM=$((EXISTING_AGENT_VERSION_NUM))
-    CURRENT_AGENT_VERSION_NUM="$(echo "$ONEAGENT_VERSION" | sed 's/\.//g')"
+    CURRENT_AGENT_VERSION_NUM="$(echo "$APMINSIGHT_ONEAGENT_VERSION" | sed 's/\.//g')"
     CURRENT_AGENT_VERSION_NUM=$((CURRENT_AGENT_VERSION_NUM))
     if [ "$EXISTING_AGENT_VERSION_NUM" -lt "$CURRENT_AGENT_VERSION_NUM" ]; then
         # ReadExistingOneagentPath
@@ -630,7 +630,7 @@ CompareAgentVersions() {
                 exit 0
             fi
         else
-            Log "Proceeding to Upgrade the existing Oneagent of version $EXISTING_ONEAGENT_VERSION"
+            Log "Proceeding to Upgrade the existing Oneagent of version $EXISTING_APMINSIGHT_ONEAGENT_VERSION"
             return
         fi
         
@@ -646,8 +646,8 @@ CompareAgentVersions() {
 
 RegisterOneagentVersion() {
     if [ -f "/etc/environment" ]; then
-        sed -i '/^ONEAGENT_VERSION/d' /etc/environment
-        echo "ONEAGENT_VERSION=$ONEAGENT_VERSION" >> "/etc/environment"
+        sed -i '/^SITE24X7_APMINSIGHT_ONEAGENT_VERSION/d' /etc/environment
+        echo "SITE24X7_APMINSIGHT_ONEAGENT_VERSION=$APMINSIGHT_ONEAGENT_VERSION" >> "/etc/environment"
     fi
 }
 
@@ -676,11 +676,11 @@ ReadExistingOneagentPath() {
 }
 
 CheckAgentInstallation() {
-    FindKeyValPairInFile "/etc/environment" "ONEAGENT_VERSION" "EXISTING_ONEAGENT_VERSION"
+    FindKeyValPairInFile "/etc/environment" "SITE24X7_APMINSIGHT_ONEAGENT_VERSION" "EXISTING_APMINSIGHT_ONEAGENT_VERSION"
     if [ "$1" = "-uninstall" ]; then
         Log "Uninstalling Oneagent...."
         ONEAGENT_OPERATION="uninstall"
-        if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
+        if [ -z "$EXISTING_APMINSIGHT_ONEAGENT_VERSION" ]; then
             Log "Oneagent is not installed. Aborting uninstallation"
             exit 1
         fi
@@ -701,7 +701,7 @@ CheckAgentInstallation() {
 
     elif [ "$1" = "-upgrade" ]; then
         ONEAGENT_OPERATION="upgrade"
-        if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
+        if [ -z "$EXISTING_APMINSIGHT_ONEAGENT_VERSION" ]; then
             Log "No existing Oneagent version found."
             Log "Installing ApminsightOneagentLinux..."
             ONEAGENT_OPERATION="install"
@@ -711,7 +711,7 @@ CheckAgentInstallation() {
         fi
 
     else
-        if [ -z "$EXISTING_ONEAGENT_VERSION" ]; then
+        if [ -z "$EXISTING_APMINSIGHT_ONEAGENT_VERSION" ]; then
             Log "Installing ApminsightOneagentLinux..."
             return
         fi
