@@ -34,7 +34,7 @@ IsUpdateFound=false
 
 function InstallAgent() {
     
-        agentPath="$Destination/Site24x7DotNetCoreAgent"
+        agentPath="$Destination/ApmInsightDotNetCoreAgent"
         PSScriptRoot=$(dirname "$(realpath "$0")")
 
         if [ "$OfflineInstall" = true ]; then
@@ -178,13 +178,13 @@ function CopyFiles() {
         SetEnvironmentVariables "$resolvedPath"
         ModifyConfiguration "$resolvedPath"
     elif [ "$OneAgentInstall" = true ]; then
-        ModifyConfiguration "$OneAgentHomePath/Site24x7DotNetCoreAgent"
+        ModifyConfiguration "$OneAgentHomePath/ApmInsightDotNetCoreAgent"
     fi
 
     find "$resolvedPath/netstandard2.0" -type f -exec chmod +x {} \;
 
     if [ "$OneAgentInstall" = false ]; then
-        # Set write access for everyone in the <InstallLocation>/Site24x7DotNetCoreAgent/DotNetCoreAgent directory
+        # Set write access for everyone in the <InstallLocation>/ApmInsightDotNetCoreAgent/DotNetCoreAgent directory
         dotNetAgentPath="$installPath/DotNetCoreAgent"
         if [ -d "$dotNetAgentPath" ]; then
             sudo chmod -R 777 "$dotNetAgentPath"
@@ -203,8 +203,8 @@ function CopyAgentFiles() {
     fi
 
     if [ "$OneAgentInstall" = true ]; then
-        mkdir -p "$OneAgentHomePath/Site24x7DotNetCoreAgent"
-        cp -r "$PSScriptRoot/Agent/DotNetCoreAgent" "$OneAgentHomePath/Site24x7DotNetCoreAgent"
+        mkdir -p "$OneAgentHomePath/ApmInsightDotNetCoreAgent"
+        cp -r "$PSScriptRoot/Agent/DotNetCoreAgent" "$OneAgentHomePath/ApmInsightDotNetCoreAgent"
     elif [ "$IsUpdateFound" = false ]; then
         cp -r "$PSScriptRoot/Agent/DotNetCoreAgent" "$resolvedPath"
     fi
@@ -276,7 +276,7 @@ function SetLocalEnvironment() {
 
     export CORECLR_ENABLE_PROFILING=1
     export CORECLR_PROFILER={9D363A5F-ED5F-4AAC-B456-75AFFA6AA0C8}
-    export CORECLR_SITE24X7_HOME=$installPath
+    export DOTNETCOREAGENT_HOME=$installPath
     export CORECLR_PROFILER_PATH_64="$installPath/x64/libClrProfilerAgent.so"
     export CORECLR_PROFILER_PATH_32="$installPath/x86/libClrProfilerAgent.so"
     export DOTNET_STARTUP_HOOKS="$installPath/netstandard2.0/DotNetAgent.Loader.dll"
@@ -292,7 +292,7 @@ function SetGlobalEnvironment() {
     
     echo "CORECLR_ENABLE_PROFILING=1" | sudo tee -a /etc/environment
     echo "CORECLR_PROFILER={9D363A5F-ED5F-4AAC-B456-75AFFA6AA0C8}" | sudo tee -a /etc/environment
-    echo "CORECLR_SITE24X7_HOME=$installPath" | sudo tee -a /etc/environment
+    echo "DOTNETCOREAGENT_HOME=$installPath" | sudo tee -a /etc/environment
     echo "CORECLR_PROFILER_PATH_64=$installPath/x64/libClrProfilerAgent.so" | sudo tee -a /etc/environment
     echo "CORECLR_PROFILER_PATH_32=$installPath/x86/libClrProfilerAgent.so" | sudo tee -a /etc/environment
     echo "DOTNET_STARTUP_HOOKS=$installPath/netstandard2.0/DotNetAgent.Loader.dll" | sudo tee -a /etc/environment
