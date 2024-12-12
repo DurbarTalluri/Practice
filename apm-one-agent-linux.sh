@@ -11,8 +11,8 @@ DOTNETCORE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Pract
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
 ONEAGENT_FILES_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip"
 ONEAGENT_FILES_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip.sha256"
-PYTHON_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python_wheels.zip"
-PYTHON_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python_wheels.zip.sha256"
+PYTHON_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python.zip"
+PYTHON_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python.zip.sha256"
 S247DATAEXPORTER_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/InstallDataExporter.sh"
 
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
