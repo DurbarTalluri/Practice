@@ -366,7 +366,7 @@ InstallPythonDependencies() {
     fi
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$PYTHON_AGENT_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apm_insight_agent_python_wheels.zip" "$PYTHON_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/PYTHON"
+    ValidateChecksumAndInstallAgent "apm_insight_agent_python.zip" "$PYTHON_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/PYTHON"
     cd "$CURRENT_DIRECTORY"
     Log "INSTALLING APMINSIGHT PYTHON PACKAGE"
     PYTHON_FILE_PATH="$AGENT_INSTALLATION_PATH/lib/PYTHON/wheels"
