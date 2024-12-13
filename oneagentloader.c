@@ -331,7 +331,7 @@ int __attribute__((constructor)) my_constructor(int argc, char *argv[]) {
         get_file_path(coreprofilerpath_86, "/lib/DOTNETCORE/ApmInsightDotNetCoreAgent/x86/libClrProfilerAgent.so");
         set_env("CORECLR_PROFILER_PATH_32", coreprofilerpath_86, "DOTNETCORE", pid);
         char dotnet_startup_hooks[245];
-        get_file_path(dotnet_startup_hooks, "/lib/DOTNETCORE/ApmInsightDotNetCoreAgent//netstandard2.0/DotNetAgent.Loader.dll");
+        get_file_path(dotnet_startup_hooks, "/lib/DOTNETCORE/ApmInsightDotNetCoreAgent/netstandard2.0/DotNetAgent.Loader.dll");
         set_env("DOTNET_STARTUP_HOOKS", dotnet_startup_hooks, "DOTNETCORE", pid);
         pass_apminsight_configurations("DOTNETCORE", pid);
     }
