@@ -1,20 +1,11 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
-JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
-JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
-PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
-PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
-DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
-DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
-DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
-ONEAGENT_FILES_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
-
+AGENT_DOWNLOAD_LINKS="NODE_MINIFIED_DOWNLOAD_PATH=https://www.manageengine.com/products/applications_manager/54974026/apm_insight_agent_nodejs.zip NODE_AGENT_CHECKSUM=https://www.manageengine.com/products/applications_manager/54974026/apm_insight_agent_nodejs.zip.sha256 JAVA_AGENT_DOWNLOAD_PATH=https://www.manageengine.com/products/applications_manager/54974026/apminsight-javaagent_v16530.zip JAVA_AGENT_CHECKSUM=https://www.manageengine.com/products/applications_manager/54974026/apminsight-javaagent_v16530.zip.sha256 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX=https://www.manageengine.com/products/applications_manager/54974026/linux/glibc/ PYTHON_AGENT_CHECKSUM_PREFIX=https://www.manageengine.com/products/applications_manager/54974026/linux/glibc/ DOTNETCORE_AGENT_DOWNLOAD_PATH=https://www.manageengine.com/products/applications_manager/54974026/apminsight-dotnetcoreagent-linux.sh DOTNETCORE_AGENT_CHECKSUM=https://www.manageengine.com/products/applications_manager/54974026/apminsight-dotnetcoreagent-linux.sh.sha256 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH=https://www.manageengine.com/products/applications_manager/54974026/InstallDataExporter.sh ONEAGENT_FILES_DOWNLOAD_PATH=https://www.manageengine.com/products/applications_manager/54974026/apm-one-agent-linux-files.zip ONEAGENT_FILES_CHECKSUM=https://www.manageengine.com/products/applications_manager/54974026/apm-one-agent-linux-files.zip.sha256"
+APMINSIGHT_BRAND="AppManager"
+APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
+APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 APMINSIGHT_ONEAGENT_PATH="/opt"
-AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
 PRELOAD_FILE_PATH="/etc/ld.so.preload"
 AGENT_STARTUP_LOGFILE_PATH="$CURRENT_DIRECTORY/apm-one-agent-installation.log"
 STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/oneagentconf.ini"
@@ -27,6 +18,7 @@ TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 AGENT_CONF_STR=""
 APMINSIGHT_HOST=""
 APMINSIGHT_PORT=""
+APMINSIGHT_PROTOCOL="http"
 APMINSIGHT_HOST_URL=""
 APMINSIGHT_PROXY_URL=""
 APMINSIGHT_DOMAIN="com"
@@ -53,7 +45,7 @@ GCC_VERSION_COMPATIBLE="5.4"
 
 displayHelp() {
     echo "Usage: $0 [option] [arguments]\n \n Options:\n"
-    echo "  --APMINSIGHT_LICENSE_KEY             To configure the site24x7 License key"
+    echo "  --APMINSIGHT_LICENSE_KEY             To configure the License key"
     echo "  --APMINSIGHT_PROXY_URL               To configure Proxy Url if using, Format: protocol://user:password@host:port or protocol://user@host:port or protocol://host:port"
     #echo "  --APMINSIGHT_ONEAGENT_PATH           To configure Custom path for Oneagent related files"
     echo "  --APMINSIGHT_MONITOR_GROUP           To configure Agent monitor groups"
@@ -66,20 +58,40 @@ CheckArgs() {
     fi
 }
 
+
+ParseAgentDownloadLinks() {
+    for kv in $AGENT_DOWNLOAD_LINKS; do
+        key=$(echo "$kv" | cut -d'=' -f1)
+        value=$(echo "$kv" | cut -d'=' -f2)
+        eval "$key='$value'"
+    done
+}
+
+ReadBrandName() {
+    AGENT_INSTALLATION_PATH="/opt/$APMINSIGHT_BRAND_LCASE/apmoneagent"
+    AGENT_ROOT_DIR="/opt/$APMINSIGHT_BRAND_LCASE"
+    APMINSIGHT_USER="$APMINSIGHT_BRAND_LCASE-user"
+    APMINSIGHT_GROUP="$APMINSIGHT_BRAND_LCASE-group"
+    APMINSIGHT_SERVICE_FILE="$APMINSIGHT_BRAND_LCASE""apmoneagent.service"
+    APMINSIGHT_ONEAGENT_PRELOADER_BINARY_NAME="lib"$APMINSIGHT_BRAND_LCASE"apmoneagentloader.so"
+    APMINSIGHT_ONEAGENT_PRELOADER_BINARY_PATH="/lib/$APMINSIGHT_ONEAGENT_PRELOADER_BINARY_NAME"
+    ParseAgentDownloadLinks
+}
+
 RedirectLogs() {
     # if [ -n "$EXISTING_ONEAGENTPATH" ] && [ -f "$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log" ]; then
     #     AGENT_STARTUP_LOGFILE_PATH="$EXISTING_ONEAGENTPATH/logs/apm-one-agent-installation.log"
     EXISTING_AGENT_LOGFILE_PATH=""
     if [ -f "$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log" ]; then
         EXISTING_AGENT_LOGFILE_PATH="$AGENT_INSTALLATION_PATH/logs/apm-one-agent-installation.log"
-    elif [ -f "/opt/site24x7/apm-one-agent-installation.log" ]; then
-        EXISTING_AGENT_LOGFILE_PATH="/opt/site24x7/apm-one-agent-installation.log"
+    elif [ -f "$AGENT_ROOT_DIR/apm-one-agent-installation.log" ]; then
+        EXISTING_AGENT_LOGFILE_PATH="$AGENT_ROOT_DIR/apm-one-agent-installation.log"
     fi
     if [ -n "$EXISTING_AGENT_LOGFILE_PATH" ]; then
         file_size=$(stat -c%s "$EXISTING_AGENT_LOGFILE_PATH")
         if [ "$file_size" -gt 1048576 ]; then
             echo "$EXISTING_AGENT_LOGFILE_PATH is larger than 1 MB. Redirecting the logs to a new file"
-            mv "$EXISTING_AGENT_LOGFILE_PATH" "/opt/site24x7/apm-one-agent-installation.log.1"
+            mv "$EXISTING_AGENT_LOGFILE_PATH" "$AGENT_ROOT_DIR/apm-one-agent-installation.log.1"
         else
             AGENT_STARTUP_LOGFILE_PATH="$EXISTING_AGENT_LOGFILE_PATH"
         fi
@@ -188,20 +200,14 @@ ReadConfigFromArgs() {
                     APMINSIGHT_LICENSE_KEY=$value     
                 elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
                     APMINSIGHT_PROXY_URL=$value
-                # elif [ "$Key" = "APMINSIGHT_ONEAGENT_PATH" ]; then
-                #     if [ -d $value ]; then
-                #         APMINSIGHT_ONEAGENT_PATH=$(echo "$value" | sed 's/\/$//')
-                #         AGENT_INSTALLATION_PATH="$value/site24x7/apmoneagent"
-                #         echo "APMINSIGHT_ONEAGENT_PATH=$AGENT_INSTALLATION_PATH" >> /etc/environment 
-                #     else
-                #         Log "Path provided as APMINSIGHT_ONEAGENT_PATH not present. Installing agent at default location /opt/Site24x7/apmoneagent"
-                #     fi
                 elif [ "$Key" = "APMINSIGHT_HOST" ]; then
                     APMINSIGHT_HOST=$value
                 elif [ "$Key" = "APMINSIGHT_PORT" ]; then
                     APMINSIGHT_PORT=$value
                 elif [ "$Key" = "APMINSIGHT_PROTOCOL" ]; then
                     APMINSIGHT_PROTOCOL=$value
+                elif [ "$Key" = "APMINSIGHT_HOST_URL" ]; then
+                    APMINSIGHT_HOST_URL=$value
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
                     APMINSIGHT_MONITOR_GROUP=$value
                 elif [ "$Key" = "AGENT_KEY" ]; then
@@ -216,7 +222,7 @@ ReadConfigFromArgs() {
                     DOTNETCORE_AGENT_DOWNLOAD_PATH="$value"
                 elif [ "$Key" = "ONEAGENT_FILES_DOWNLOAD_PATH" ]; then
                     ONEAGENT_FILES_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "S247DATAEXPORTER_DOWNLOAD_PATH" ]; then
+                elif [ "$Key" = "DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH" ]; then
                     DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH="$value"
                 elif [ "$Key" = "JAVA_AGENT_CHECKSUM" ]; then
                     JAVA_AGENT_CHECKSUM="$value"
@@ -250,6 +256,9 @@ ReadConfigFromArgs() {
 }
 
 BuildApmHostUrl() {
+    if [ -n "$APMINSIGHT_HOST_URL" ]; then
+        return
+    fi
     if [ "$APMINSIGHT_HOST" != "" ]; then
         APMINSIGHT_HOST_URL="$APMINSIGHT_HOST"
         if [ "$APMINSIGHT_PORT" != "" ]; then
@@ -258,6 +267,13 @@ BuildApmHostUrl() {
             APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:443"
         fi
         APMINSIGHT_HOST_URL="$APMINSIGHT_PROTOCOL://$APMINSIGHT_HOST_URL"
+
+    elif [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+        ReadDomain
+        APMINSIGHT_HOST_URL="https://plusinsight.site24x7.""$APMINSIGHT_DOMAIN:443"
+    else
+        Log "Please provide a proper Apminsight Host details. Exiting Installation"
+        exit 0 
     fi
 }
 
@@ -298,7 +314,6 @@ SetupAgentConfigurations() {
     ReadConfigFromArgs "$@"
     BuildApmHostUrl
     SetProxy
-    ReadDomain
     EncryptLicenseKey
 }
 
@@ -391,11 +406,14 @@ InstallDotNetCoreAgent() {
     cd "$CURRENT_DIRECTORY"
 }
 
-#INSTALL S247DATAEXPORTER
-InstallS247DataExporter() {
-    Log "INSTALLING S247DATAEXPORTER"
+#INSTALL DATAEXPORTER
+InstallDataExporter() {
+    Log "INSTALLING DATAEXPORTER"
     EXPORTER_INSTALLATION_ARGUMENTS="-license.key "$APMINSIGHT_LICENSE_KEY" -apminsight.oneagent.conf.filepath "$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini""
-    DOWNLOAD_PATH="https://staticdownloads.site24x7.""$APMINSIGHT_DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
+    if [ -z "$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH" ]; then
+        DOWNLOAD_PATH="https://staticdownloads.site24x7.""$APMINSIGHT_DOMAIN""$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION"
+    fi
+    DOWNLOAD_PATH="$DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH"
     if [ "$BUNDLED" -eq 0 ] && [ "$KUBERNETES_ENV" -eq 0 ]; then
         cd "$TEMP_FOLDER_PATH"
         wget -nv -O InstallDataExporter.sh "$DOWNLOAD_PATH"
@@ -417,8 +435,8 @@ InstallS247DataExporter() {
 RemoveExistingOneagentFiles() {
     Log "Removing existing Oneagent binaries and files"
     find "$AGENT_INSTALLATION_PATH/bin" -mindepth 1 -delete
-    sed -i '/libsite24x7apmoneagentloader.so$/d' /etc/ld.so.preload
-    rm -f /lib/libsite24x7apmoneagentloader.so
+    sed -i '/'$APMINSIGHT_ONEAGENT_PRELOADER_BINARY_NAME'$/d' /etc/ld.so.preload
+    rm -f "$APMINSIGHT_ONEAGENT_PRELOADER_BINARY_PATH"
 }
 
 #CREATE AGENT FOLDERS IN USER MACHINE AND STORE THE DOWNLOADED AGENT FILES 
@@ -452,13 +470,13 @@ SetupOneagentFiles() {
 #GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
 GiveFilePermissions() {
     Log "GIVING FILE PERMISSIONS"
-    chown -R site24x7-user:site24x7-group "$AGENT_INSTALLATION_PATH"
+    chown -R $APMINSIGHT_USER:$APMINSIGHT_GROUP "$AGENT_INSTALLATION_PATH"
     chmod 777 -R "$AGENT_INSTALLATION_PATH"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/bin"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
     chmod 777 -R "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
     chmod 644 "$PRELOAD_FILE_PATH"
-    chmod 644 "/lib/libsite24x7apmoneagentloader.so"
+    chmod 644 "$APMINSIGHT_ONEAGENT_PRELOADER_BINARY_PATH"
 }
 
 RemoveExistingAgentFiles() {
@@ -496,7 +514,7 @@ SetupAgents() {
     InstallNodeJSDependencies
     InstallPythonDependencies
     InstallDotNetCoreAgent
-    InstallS247DataExporter
+    InstallDataExporter
     LoadAgentForExistingJavaProcesses
 }
 
@@ -538,9 +556,6 @@ WriteToAgentConfFile() {
     if [ -n "$APMINSIGHT_PROTOCOL" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROTOCOL=$APMINSIGHT_PROTOCOL\n"
     fi
-    if [ -n "$APMINSIGHT_HOST_URL" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST_URL=$APMINSIGHT_HOST_URL\n"
-    fi  
     if [ -n "$APMINSIGHT_MONITOR_GROUP" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_MONITOR_GROUP=$APMINSIGHT_MONITOR_GROUP\n"
     fi
@@ -556,6 +571,7 @@ WriteToAgentConfFile() {
     if [ -n "$APMINSIGHT_AGENT_ID" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_AGENT_ID=$APMINSIGHT_AGENT_ID\n"
     fi
+    AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST_URL=$APMINSIGHT_HOST_URL\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_DOMAIN=$APMINSIGHT_DOMAIN\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""AGENT_KEY=$AGENT_KEY\n"
     conf_filepath="$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini"
@@ -571,8 +587,8 @@ WriteToAgentConfFile() {
 SetPreload() {
     Log "SETTING PRELOAD"
     if [ -f "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" ]; then
-        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" /lib/libsite24x7apmoneagentloader.so
-        echo "/lib/libsite24x7apmoneagentloader.so" >> "$PRELOAD_FILE_PATH"
+        mv "$AGENT_INSTALLATION_PATH/bin/oneagentloader.so" "$APMINSIGHT_ONEAGENT_PRELOADER_BINARY_PATH"
+        echo "$APMINSIGHT_ONEAGENT_PRELOADER_BINARY_PATH" >> "$PRELOAD_FILE_PATH"
     else
         Log "oneagentloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
         INSTALLATION_UNSUCCESSFUL="true"
@@ -640,9 +656,8 @@ RegisterOneagentVersion() {
         exit 0
     fi
     if [ -f "/etc/environment" ]; then
-        Log "Installation successful"
-        sed -i '/^SITE24X7_APMINSIGHT_ONEAGENT_VERSION/d' /etc/environment
-        echo "SITE24X7_APMINSIGHT_ONEAGENT_VERSION=$APMINSIGHT_ONEAGENT_VERSION" >> "/etc/environment"
+        sed -i '/^'$APMINSIGHT_BRAND_UCASE'_APMINSIGHT_ONEAGENT_VERSION/d' /etc/environment
+        echo ""$APMINSIGHT_BRAND_UCASE"_APMINSIGHT_ONEAGENT_VERSION=$APMINSIGHT_ONEAGENT_VERSION" >> "/etc/environment"
         Log "Registered Oneagent Version successfully"
     fi
 }
@@ -672,7 +687,7 @@ ReadExistingOneagentPath() {
 }
 
 CheckAgentInstallation() {
-    FindKeyValPairInFile "/etc/environment" "SITE24X7_APMINSIGHT_ONEAGENT_VERSION" "EXISTING_APMINSIGHT_ONEAGENT_VERSION"
+    FindKeyValPairInFile "/etc/environment" ""$APMINSIGHT_BRAND_UCASE"_APMINSIGHT_ONEAGENT_VERSION" "EXISTING_APMINSIGHT_ONEAGENT_VERSION"
     if [ "$1" = "-uninstall" ]; then
         Log "Uninstalling Oneagent...."
         ONEAGENT_OPERATION="uninstall"
@@ -716,65 +731,76 @@ CheckAgentInstallation() {
     CompareAgentVersions
 }
 
-Site24x7UserExists() {
-    if id "site24x7-user" >/dev/null 2>&1; then
+ApminsightUserExists() {
+    if id "$APMINSIGHT_USER" >/dev/null 2>&1; then
         return 0
     fi
     return 1
 }
 
-CheckAndAddSite24x7UserToSite24x7Group() {
-    if groups site24x7-user | grep -q "\bsite24x7-group\b"; then
-        Log "User 'site24x7-user' already found in site24x7-group."
+CheckAndAddUserToApminsightGroup() {
+    if groups $APMINSIGHT_USER | grep -q "\b$APMINSIGHT_GROUP\b"; then
+        Log "User '$APMINSIGHT_USER' already found in $APMINSIGHT_GROUP."
     else
-        usermod -aG site24x7-group site24x7-user
+        usermod -aG $APMINSIGHT_GROUP $APMINSIGHT_USER
     fi
 }
-CheckAndCreateSite24x7User() {
-    if Site24x7UserExists; then
-        Log "User 'site24x7-user' already exists."
+CheckAndCreateApminsightUser() {
+    if ApminsightUserExists; then
+        Log "User '$APMINSIGHT_USER' already exists."
     else
-        Log "Creating site24x7-user"
-        useradd --system --no-create-home --no-user-group site24x7-user
-        if ! Site24x7UserExists; then
-            Log "Could not create site24x7-user, Aborting Apminsight Oneagent Installation"
+        Log "Creating $APMINSIGHT_USER"
+        useradd --system --no-create-home --no-user-group $APMINSIGHT_USER
+        if ! ApminsightUserExists; then
+            Log "Could not create $APMINSIGHT_USER, Aborting Apminsight Oneagent Installation"
             exit 1
         fi
     fi
-    CheckAndAddSite24x7UserToSite24x7Group
+    CheckAndAddUserToApminsightGroup
 }
 
 CheckAndRemoveExistingService() {
-    if systemctl list-units --type=service --all | grep -q "site24x7apmoneagent.service"; then
-        Log "Found an existing site24x7apmoneagent service> Removing the service"
-        Log "$(systemctl stop site24x7apmoneagent.service 2>&1)"
-        Log "$(systemctl disable site24x7apmoneagent.service 2>&1)"
+    if systemctl list-units --type=service --all | grep -q "$APMINSIGHT_SERVICE_FILE"; then
+        Log "Found an existing $APMINSIGHT_SERVICE_FILE, Removing the service"
+        Log "$(systemctl stop $APMINSIGHT_SERVICE_FILE 2>&1)"
+        Log "$(systemctl disable $APMINSIGHT_SERVICE_FILE 2>&1)"
     fi
-    rm -f /etc/systemd/system/site24x7apmoneagent.service
+    rm -f /etc/systemd/system/$APMINSIGHT_SERVICE_FILE
     Log "$(systemctl daemon-reload 2>&1)"
 }
 
 RegisterOneagentService() {
-    Log "Registering site24x7apmoneagent service"
+    Log "Registering $APMINSIGHT_SERVICE_FILE"
     CheckAndRemoveExistingService
-    if ! [ -f "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" ]; then
+    if ! [ -f "$AGENT_INSTALLATION_PATH/bin/$APMINSIGHT_SERVICE_FILE" ]; then
         Log "Cannot find Oneagent service binary. Skipping the service start"
         INSTALLATION_UNSUCCESSFUL="true"
         return
     fi
-    cp "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" /etc/systemd/system/
-    Log "$(systemctl enable site24x7apmoneagent.service 2>&1)"
+    cp "$AGENT_INSTALLATION_PATH/bin/$APMINSIGHT_SERVICE_FILE" /etc/systemd/system/
+    Log "$(systemctl enable $APMINSIGHT_SERVICE_FILE 2>&1)"
     Log "$(systemctl daemon-reload 2>&1)"
-    Log "$(systemctl restart site24x7apmoneagent.service 2>&1)"
-    if systemctl list-unit-files --type=service | grep -q "^$site24x7apmoneagent.service"; then
-        echo "Service site24x7apmoneagent is registered properly."
+    Log "$(systemctl restart $APMINSIGHT_SERVICE_FILE 2>&1)"
+    if systemctl list-unit-files --type=service | grep -q "^$APMINSIGHT_SERVICE_FILE"; then
+        echo "$APMINSIGHT_SERVICE_FILE is registered properly."
     else
-        echo "Service $SERVICE_NAME is not registered properly."
+        echo "$APMINSIGHT_SERVICE_FILE is not registered properly."
         INSTALLATION_UNSUCCESSFUL="true"
     fi
 }
 
 checkGlibcCompatibility() {
+    if ! command -v ldd >/dev/null 2>&1; then
+        Log "ldd command not found. Unable to check for glibc."
+        exit 0
+    fi
+
+    if ldd --version 2>/dev/null | grep -q "GLIBC"; then
+        Log "GLIBC detected."
+    else
+        Log "GLIBC not detected. ApminsightOneagentLinux is not supported for non-GLIBC distributions for now"
+        exit 0
+    fi
     GLIBC_VERSION="$(ldd --version | awk 'NR==1{ print $NF }')"
     GLIBC_VERSION_MAJ=$(echo "$GLIBC_VERSION" | sed 's/\..*//')
     GLIBC_VERSION_MIN=$(echo "$GLIBC_VERSION" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
@@ -815,11 +841,12 @@ checkCompatibility() {
 
 main() {
     CheckRoot
+    ReadBrandName
     RedirectLogs
     checkCompatibility
     CheckArgs $@
     CheckAgentInstallation $@
-    CheckAndCreateSite24x7User
+    CheckAndCreateApminsightUser
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
     SetupAgents
