@@ -1,20 +1,18 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_nodejs.zip.sha256"
-JAVA_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-javaagent.zip"
-JAVA_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-javaagent.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
+JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
+JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
 PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
 PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
-DOTNETCORE_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.sh"
-DOTNETCORE_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.sh.sha256"
+DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
+DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip"
-ONEAGENT_FILES_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip.sha256"
-PYTHON_AGENT_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python.zip"
-PYTHON_AGENT_CHECKSUM="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_agent_python.zip.sha256"
-S247DATAEXPORTER_DOWNLOAD_PATH="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/InstallDataExporter.sh"
-
+ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
+ONEAGENT_FILES_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
+ONEAGENT_FILES_DOWNLOAD_PATH="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/apm_insight_gcc_5_4/Dec_18_2024/apminsight_one_agent/apminsight_one_agent/site24x7/agents/linux/glibc/amd64/apm_insight_oneagent_linux_files.zip"
+ONEAGENT_FILES_CHECKSUM="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/apm_insight_gcc_5_4/Dec_18_2024/apminsight_one_agent/apminsight_one_agent/site24x7/agents/linux/glibc/amd64/apm_insight_oneagent_linux_files.zip.sha256"
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 APMINSIGHT_ONEAGENT_PATH="/opt"
 AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
@@ -78,8 +76,8 @@ RedirectLogs() {
     elif [ -f "/opt/site24x7/apm-one-agent-installation.log" ]; then
         EXISTING_AGENT_LOGFILE_PATH="/opt/site24x7/apm-one-agent-installation.log"
     fi
-    file_size=$(stat -c%s "$EXISTING_AGENT_LOGFILE_PATH")
     if [ -n "$EXISTING_AGENT_LOGFILE_PATH" ]; then
+        file_size=$(stat -c%s "$EXISTING_AGENT_LOGFILE_PATH")
         if [ "$file_size" -gt 1048576 ]; then
             echo "$EXISTING_AGENT_LOGFILE_PATH is larger than 1 MB. Redirecting the logs to a new file"
             mv "$EXISTING_AGENT_LOGFILE_PATH" "/opt/site24x7/apm-one-agent-installation.log.1"
@@ -217,8 +215,8 @@ ReadConfigFromArgs() {
                     PYTHON_AGENT_DOWNLOAD_PATH="$value"
                 elif [ "$Key" = "DOTNETCORE_AGENT_DOWNLOAD_PATH" ]; then
                     DOTNETCORE_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "ONEAGENT_DOWNLOAD_PATH" ]; then
-                    ONEAGENT_FILES_DONWLOAD_PATH="$value"
+                elif [ "$Key" = "ONEAGENT_FILES_DOWNLOAD_PATH" ]; then
+                    ONEAGENT_FILES_DOWNLOAD_PATH="$value"
                 elif [ "$Key" = "S247DATAEXPORTER_DOWNLOAD_PATH" ]; then
                     DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH="$value"
                 elif [ "$Key" = "JAVA_AGENT_CHECKSUM" ]; then
@@ -435,28 +433,20 @@ CreateOneAgentFiles() {
     touch "$AGENT_INSTALLATION_PATH/logs/oneagentloader.log"
 }
 
-ValidateChecksumAndInstallOneagent() {
-    Log "Checksum validation for the file $1"
-    file="$1"
-    checksumVerificationLink="$2"
-    destinationpath="$3"
-    checksumfilename="$file-checksum"
-    wget -nv -O "$checksumfilename" $checksumVerificationLink
-    Originalchecksumvalue="$(cat "$checksumfilename")"
-    Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
-    if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
-        unzip -j "$file" -d "$destinationpath"
-    fi
-}
-
 SetupOneagentFiles() {
     Log "DELETING EXISTING ONEAGENT FILES IF ANY"
     RemoveExistingOneagentFiles
     CreateOneAgentFiles
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
+    if [ -z "$ONEAGENT_FILES_DOWNLOAD_PATH" ]; then
+        ONEAGENT_FILES_DOWNLOAD_PATH="$ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip"
+    fi
+    if [ -z "$ONEAGENT_FILES_CHECKSUM" ]; then
+        ONEAGENT_FILES_CHECKSUM="$ONEAGENT_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip.sha256"
+    fi
     wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallOneagent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -586,6 +576,7 @@ SetPreload() {
         echo "/lib/libsite24x7apmoneagentloader.so" >> "$PRELOAD_FILE_PATH"
     else
         Log "oneagentloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
+        INSTALLATION_UNSUCCESSFUL="true"
     fi
 
 }
@@ -645,9 +636,15 @@ CompareAgentVersions() {
 }
 
 RegisterOneagentVersion() {
+    if [ "$INSTALLATION_UNSUCCESSFUL" = "true" ]; then
+        Log "Installation unsuccessful"
+        exit 0
+    fi
     if [ -f "/etc/environment" ]; then
+        Log "Installation successful"
         sed -i '/^SITE24X7_APMINSIGHT_ONEAGENT_VERSION/d' /etc/environment
         echo "SITE24X7_APMINSIGHT_ONEAGENT_VERSION=$APMINSIGHT_ONEAGENT_VERSION" >> "/etc/environment"
+        Log "Registered Oneagent Version successfully"
     fi
 }
 
@@ -763,15 +760,33 @@ RegisterOneagentService() {
     CheckAndRemoveExistingService
     if ! [ -f "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" ]; then
         Log "Cannot find Oneagent service binary. Skipping the service start"
-        exit 1
+        INSTALLATION_UNSUCCESSFUL="true"
+        return
     fi
     cp "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" /etc/systemd/system/
     Log "$(systemctl enable site24x7apmoneagent.service 2>&1)"
     Log "$(systemctl daemon-reload 2>&1)"
     Log "$(systemctl restart site24x7apmoneagent.service 2>&1)"
+    if systemctl list-unit-files --type=service | grep -q "^$site24x7apmoneagent.service"; then
+        echo "Service site24x7apmoneagent is registered properly."
+    else
+        echo "Service $SERVICE_NAME is not registered properly."
+        INSTALLATION_UNSUCCESSFUL="true"
+    fi
 }
 
 checkGlibcCompatibility() {
+    if ! command -v ldd >/dev/null 2>&1; then
+        Log "ldd command not found. Unable to check for glibc."
+        exit 0
+    fi
+
+    if ldd --version 2>/dev/null | grep -q "GLIBC"; then
+        Log "GLIBC detected."
+    else
+        Log "GLIBC not detected. ApminsightOneagentLinux is not supported for non-GLIBC distributions for now"
+        exit 0
+    fi
     GLIBC_VERSION="$(ldd --version | awk 'NR==1{ print $NF }')"
     GLIBC_VERSION_MAJ=$(echo "$GLIBC_VERSION" | sed 's/\..*//')
     GLIBC_VERSION_MIN=$(echo "$GLIBC_VERSION" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
@@ -821,10 +836,10 @@ main() {
     SetupAgentConfigurations "$@"
     SetupAgents
     WriteToAgentConfFile
-    RegisterOneagentVersion
     SetPreload
     GiveFilePermissions
     RegisterOneagentService
+    RegisterOneagentVersion
     MoveInstallationFiles
     RemoveInstallationFiles
     }
