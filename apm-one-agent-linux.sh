@@ -767,10 +767,10 @@ RegisterOneagentService() {
     Log "$(systemctl enable site24x7apmoneagent.service 2>&1)"
     Log "$(systemctl daemon-reload 2>&1)"
     Log "$(systemctl restart site24x7apmoneagent.service 2>&1)"
-    if systemctl list-unit-files --type=service | grep -q "^$site24x7apmoneagent.service"; then
+    if systemctl list-unit-files --type=service | grep -q "^site24x7apmoneagent.service"; then
         echo "Service site24x7apmoneagent is registered properly."
     else
-        echo "Service $SERVICE_NAME is not registered properly."
+        echo "Service site24x7apmoneagent is not registered properly."
         INSTALLATION_UNSUCCESSFUL="true"
     fi
 }
