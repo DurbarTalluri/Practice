@@ -9,10 +9,8 @@ PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/ch
 DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
 DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
-ONEAGENT_FILES_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
-ONEAGENT_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/pre_master/Dec_18_2024/apminsight_one_agent/apminsight_one_agent/site24x7/agents/linux/glibc/amd64/apm_insight_oneagent_linux_files.zip
-ONEAGENT_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/pre_master/Dec_18_2024/apminsight_one_agent/apminsight_one_agent/site24x7/checksum/linux/glibc/amd64/apm_insight_oneagent_linux_files.zip.sha256
+ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/pre_master/Dec_18_2024/apminsight_one_agent/apminsight_one_agent/site24x7/agents/linux/glibc/"
+ONEAGENT_FILES_CHECKSUM_PREFIX="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/pre_master/Dec_18_2024/apminsight_one_agent/apminsight_one_agent/site24x7/checksum/linux/glibc/"
 
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 APMINSIGHT_ONEAGENT_PATH="/opt"
