@@ -1,16 +1,16 @@
 #!/bin/sh
 
-NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apm_insight_agent_nodejs.zip"
-NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apm_insight_agent_nodejs.zip.sha256"
+NODE_MINIFIED_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/nodejs/apm_insight_agent_nodejs.zip"
+NODE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/agents/nodejs/apm_insight_agent_nodejs.zip.sha256"
 JAVA_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-javaagent.zip"
 JAVA_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-javaagent.zip.sha256"
-PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/linux/glibc/"
-PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/checksum/linux/glibc/"
-DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/apminsight-dotnetcoreagent-linux.sh"
-DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/checksum/apminsight-dotnetcoreagent-linux.sh.sha256"
+PYTHON_AGENT_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/python/linux/glibc/"
+PYTHON_AGENT_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/python/linux/glibc/"
+DOTNETCORE_AGENT_DOWNLOAD_PATH="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/apminsight-dotnetcoreagent-linux.sh"
+DOTNETCORE_AGENT_CHECKSUM="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/apminsight-dotnetcoreagent-linux.sh.sha256"
 DATA_EXPORTER_SCRIPT_DOWNLOAD_PATH_EXTENSION="/apminsight/S247DataExporter/linux/InstallDataExporter.sh"
-ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/pre_master/Dec_18_2024/apminsight_one_agent/apminsight_one_agent/site24x7/agents/linux/glibc/"
-ONEAGENT_FILES_CHECKSUM_PREFIX="https://build.zohocorp.com/me/apm_insight_one_agent/webhost/pre_master/Dec_18_2024/apminsight_one_agent/apminsight_one_agent/site24x7/checksum/linux/glibc/"
+ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/oneagent/linux/glibc/"
+ONEAGENT_FILES_CHECKSUM_PREFIX="https://staticdownloads.site24x7.com/apminsight/agents/oneagent/linux/glibc/"
 
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 APMINSIGHT_ONEAGENT_PATH="/opt"
@@ -336,6 +336,7 @@ ValidateChecksumAndInstallAgent() {
     checksumfilename="$file-checksum"
     wget -nv -O "$checksumfilename" $checksumVerificationLink
     Originalchecksumvalue="$(cat "$checksumfilename")"
+    Originalchecksumvalue="$(echo "$Originalchecksumvalue" | tr '[:upper:]' '[:lower:]')"
     Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
     if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
         unzip "$file" -d "$destinationpath"
@@ -382,7 +383,8 @@ InstallDotNetCoreAgent() {
     wget -nv "$DOTNETCORE_AGENT_DOWNLOAD_PATH"
     wget -nv "$DOTNETCORE_AGENT_CHECKSUM"
     Originalchecksumvalue="$(cat "apminsight-dotnetcoreagent-linux.sh.sha256")"
-    Downloadfilechecksumvalue="$(sha256sum "apminsight-dotnetcoreagent-linux.sh" | awk -F' ' '{print $1}')"
+    Originalchecksumvalue=$(cat "apminsight-dotnetcoreagent-linux.sh.sha256" | tr '[:upper:]' '[:lower:]' | cut -c 1-64)
+    Downloadfilechecksumvalue="$(sha256sum "apminsight-dotnetcoreagent-linux.sh" | awk '{print tolower(substr($1, 1, 64))}')"
     if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
         bash ./apminsight-dotnetcoreagent-linux.sh -Destination "$AGENT_INSTALLATION_PATH/lib/DOTNETCORE" -OneAgentInstall -OneAgentHomePath "$AGENT_INSTALLATION_PATH/agents/DOTNETCORE"
     else
@@ -681,16 +683,16 @@ CheckAgentInstallation() {
             exit 1
         fi
         # ReadExistingOneagentPath
-        # if ! [ -f "$EXISTING_ONEAGENTPATH/bin/uninstall.sh" ]; then
-        #     Log "Cannot find uninstall.sh file at Oneagent installed location: $EXISTING_ONEAGENTPATH/bin/uninstall.sh"
+        # if ! [ -f "$EXISTING_ONEAGENTPATH/bin/apm-one-agent-linux-uninstall.sh" ]; then
+        #     Log "Cannot find apm-one-agent-linux-uninstall.sh file at Oneagent installed location: $EXISTING_ONEAGENTPATH/bin/apm-one-agent-linux-uninstall.sh"
         #     exit 1
         # fi
-        # sh "$EXISTING_ONEAGENTPATH/bin/uninstall.sh"
-        if [ -f "$AGENT_INSTALLATION_PATH/bin/uninstall.sh" ]; then
-            sh "$AGENT_INSTALLATION_PATH/bin/uninstall.sh"
+        # sh "$EXISTING_ONEAGENTPATH/bin/apm-one-agent-linux-uninstall.sh"
+        if [ -f "$AGENT_INSTALLATION_PATH/bin/apm-one-agent-linux-uninstall.sh" ]; then
+            sh "$AGENT_INSTALLATION_PATH/bin/apm-one-agent-linux-uninstall.sh"
             exit 0
         else
-            Log "Cannot find uninstall.sh file at Oneagent installed location: $AGENT_INSTALLATION_PATH/bin/uninstall.sh"
+            Log "Cannot find apm-one-agent-linux-uninstall.sh file at Oneagent installed location: $AGENT_INSTALLATION_PATH/bin/apm-one-agent-linux-uninstall.sh"
             exit 1
         fi
         exit 0
