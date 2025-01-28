@@ -63,6 +63,9 @@ CheckArgs() {
     if [ "$*" = "--help" ]; then
         displayHelp
         exit 1
+    elif [ "$*" = "-version" ]; then
+        echo "$APMINSIGHT_ONEAGENT_VERSION"
+        exit 1
     fi
 }
 
@@ -827,10 +830,10 @@ checkCompatibility() {
 }
 
 main() {
+    CheckArgs $@
     CheckRoot
     RedirectLogs
     checkCompatibility
-    CheckArgs $@
     CheckAgentInstallation $@
     CheckAndCreateSite24x7User
     SetupPreInstallationChecks
