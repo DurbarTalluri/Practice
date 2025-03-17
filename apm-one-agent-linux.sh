@@ -495,11 +495,11 @@ SetupAgents() {
         return
     fi
     RemoveExistingAgentFiles
-    CreateApmAgentFiles
-    DownloadAgentFiles
-    InstallNodeJSDependencies
-    InstallPythonDependencies
-    InstallDotNetCoreAgent
+    # CreateApmAgentFiles
+    # DownloadAgentFiles
+    # InstallNodeJSDependencies
+    # InstallPythonDependencies
+    # InstallDotNetCoreAgent
 }
 
 #CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
@@ -564,7 +564,7 @@ WriteToAgentConfFile() {
     echo "$AGENT_CONF_STR" > "$conf_filepath"
     if [ -f "$conf_filepath" ]; then
         Log "Successfully created the oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
-	Log "ONEAGENT CONF: $AGENT_CONF_STR"
+	#Log "ONEAGENT CONF: $AGENT_CONF_STR"
     else
         Log "Error creating file oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
     fi
@@ -846,5 +846,6 @@ main() {
     RegisterOneagentVersion
     MoveInstallationFiles
     RemoveInstallationFiles
+    cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     }
 main "$@"
