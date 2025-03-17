@@ -834,10 +834,10 @@ CheckAlreadyRunningProcess() {
 }
 
 main() {
-    CheckAlreadyRunningProcess
     CheckArgs $@
     CheckRoot
     RedirectLogs
+    CheckAlreadyRunningProcess
     checkCompatibility
     CheckAgentInstallation $@
     CheckAndCreateSite24x7User
