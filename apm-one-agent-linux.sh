@@ -827,7 +827,7 @@ checkCompatibility() {
 }
 
 CheckAlreadyRunningProcess() {
-    if ps -ef 2>/dev/null | grep -q "apm-one-agent-linux.sh -upgrade"; then
+    if ps -ef 2>/dev/null | grep -v "grep" | grep -q "apm-one-agent-linux.sh -upgrade"; then
         Log "Already existing process to Install Site24x7 ApmOneagent detected, EXITING..."
         exit 0
     fi
