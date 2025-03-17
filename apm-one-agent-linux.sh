@@ -442,14 +442,16 @@ SetupOneagentFiles() {
     CreateOneAgentFiles
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
-    if [ -z "$ONEAGENT_FILES_DOWNLOAD_PATH" ]; then
-        ONEAGENT_FILES_DOWNLOAD_PATH="$ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip"
-    fi
-    if [ -z "$ONEAGENT_FILES_CHECKSUM" ]; then
-        ONEAGENT_FILES_CHECKSUM="$ONEAGENT_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip.sha256"
-    fi
-    wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    # if [ -z "$ONEAGENT_FILES_DOWNLOAD_PATH" ]; then
+    #     ONEAGENT_FILES_DOWNLOAD_PATH="$ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip"
+    # fi
+    # if [ -z "$ONEAGENT_FILES_CHECKSUM" ]; then
+    #     ONEAGENT_FILES_CHECKSUM="$ONEAGENT_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip.sha256"
+    # fi
+    # wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
+    # ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    wget https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip
+    unzip -j apm_insight_oneagent_linux_files.zip -d "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
 
