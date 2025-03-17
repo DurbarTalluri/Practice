@@ -564,6 +564,7 @@ WriteToAgentConfFile() {
     echo "$AGENT_CONF_STR" > "$conf_filepath"
     if [ -f "$conf_filepath" ]; then
         Log "Successfully created the oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
+	Log "ONEAGENT CONF: $AGENT_CONF_STR"
     else
         Log "Error creating file oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
     fi
