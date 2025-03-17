@@ -768,6 +768,7 @@ RegisterOneagentService() {
     cp "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" /etc/systemd/system/
     Log "$(systemctl enable site24x7apmoneagent.service 2>&1)"
     Log "$(systemctl daemon-reload 2>&1)"
+    cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     Log "$(systemctl restart site24x7apmoneagent.service 2>&1)"
     if systemctl list-unit-files --type=service | grep -q "^site24x7apmoneagent.service"; then
         echo "Service site24x7apmoneagent is registered properly."
@@ -847,6 +848,5 @@ main() {
     RegisterOneagentVersion
     MoveInstallationFiles
     RemoveInstallationFiles
-    cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     }
 main "$@"
