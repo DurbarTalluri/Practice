@@ -18,6 +18,7 @@ AGENT_INSTALLATION_PATH="/opt/site24x7/apmoneagent"
 PRELOAD_FILE_PATH="/etc/ld.so.preload"
 AGENT_STARTUP_LOGFILE_PATH="$CURRENT_DIRECTORY/apm-one-agent-installation.log"
 STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/oneagentconf.ini"
+PYTHON_AGENT_PATH="$AGENT_INSTALLATION_PATH/lib/PYTHON"
 
 KUBERNETES_ENV=0
 BUNDLED=0
@@ -30,7 +31,6 @@ APMINSIGHT_PORT=""
 APMINSIGHT_HOST_URL=""
 APMINSIGHT_PROXY_URL=""
 APMINSIGHT_DOMAIN="com"
-PYTHON_AGENT_PATH=""
 APMINSIGHT_AGENT_START_TIME=""
 APMINSIGHT_AGENT_ID=""
 
@@ -62,6 +62,9 @@ displayHelp() {
 CheckArgs() {
     if [ "$*" = "--help" ]; then
         displayHelp
+        exit 1
+    elif [ "$*" = "-version" ]; then
+        echo "$APMINSIGHT_ONEAGENT_VERSION"
         exit 1
     fi
 }
@@ -364,16 +367,15 @@ InstallPythonDependencies() {
     fi
     cd "$TEMP_FOLDER_PATH"
     wget -nv "$PYTHON_AGENT_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apm_insight_agent_python.zip" "$PYTHON_AGENT_CHECKSUM" "$AGENT_INSTALLATION_PATH/lib/PYTHON"
+    ValidateChecksumAndInstallAgent "apm_insight_agent_python.zip" "$PYTHON_AGENT_CHECKSUM" "$TEMP_FOLDER_PATH"
     cd "$CURRENT_DIRECTORY"
     Log "INSTALLING APMINSIGHT PYTHON PACKAGE"
-    PYTHON_FILE_PATH="$AGENT_INSTALLATION_PATH/lib/PYTHON/wheels"
+    PYTHON_FILE_PATH="$TEMP_FOLDER_PATH/wheels"
     if [ "$KUBERNETES_ENV" -eq 1 ]; then
         PYTHON_FILE_PATH="$AGENT_INSTALLATION_PATH/wheels"
     fi
     pip uninstall --yes apminsight
-    pip install --upgrade --no-index --find-links="$PYTHON_FILE_PATH" apminsight 2>/tmp/python_agent_installation_warnings.log
-    PYTHON_AGENT_PATH="$(pip show apminsight | awk '/^Location:/ {print $2}')"
+    pip install --upgrade --no-index --target="$PYTHON_AGENT_PATH" --find-links="$PYTHON_FILE_PATH" apminsight 2>/tmp/python_agent_installation_warnings.log
     NEW_PYTHON_PATH="$PYTHON_AGENT_PATH/apminsight/bootstrap:$PYTHON_AGENT_PATH:"
     AGENT_CONF_STR="$AGENT_CONF_STR""NEW_PYTHON_PATH=$NEW_PYTHON_PATH\n"
 }
@@ -498,8 +500,6 @@ SetupAgents() {
     InstallNodeJSDependencies
     InstallPythonDependencies
     InstallDotNetCoreAgent
-    InstallS247DataExporter
-    LoadAgentForExistingJavaProcesses
 }
 
 #CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
@@ -782,7 +782,7 @@ checkGlibcCompatibility() {
         exit 0
     fi
 
-    if ldd --version 2>/dev/null | grep -q "GLIBC"; then
+    if ldd --version 2>/dev/null | grep -iqE "GNU libc|Free Software Foundation|Roland McGrath"; then
         Log "GLIBC detected."
     else
         Log "GLIBC not detected. ApminsightOneagentLinux is not supported for non-GLIBC distributions for now"
@@ -827,16 +827,18 @@ checkCompatibility() {
 }
 
 main() {
+    CheckArgs $@
     CheckRoot
     RedirectLogs
     checkCompatibility
-    CheckArgs $@
     CheckAgentInstallation $@
     CheckAndCreateSite24x7User
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
     SetupAgents
     WriteToAgentConfFile
+    InstallS247DataExporter
+    LoadAgentForExistingJavaProcesses
     SetPreload
     GiveFilePermissions
     RegisterOneagentService
