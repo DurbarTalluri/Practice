@@ -771,6 +771,7 @@ RegisterOneagentService() {
     cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     chmod 644 /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     Log "$(systemctl restart site24x7apmoneagent.service 2>&1)"
+    cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     if systemctl list-unit-files --type=service | grep -q "^site24x7apmoneagent.service"; then
         echo "Service site24x7apmoneagent is registered properly."
     else
