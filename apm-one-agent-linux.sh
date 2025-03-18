@@ -442,16 +442,14 @@ SetupOneagentFiles() {
     CreateOneAgentFiles
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
-    # if [ -z "$ONEAGENT_FILES_DOWNLOAD_PATH" ]; then
-    #     ONEAGENT_FILES_DOWNLOAD_PATH="$ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip"
-    # fi
-    # if [ -z "$ONEAGENT_FILES_CHECKSUM" ]; then
-    #     ONEAGENT_FILES_CHECKSUM="$ONEAGENT_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip.sha256"
-    # fi
-    # wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
-    # ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
-    wget https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apm_insight_oneagent_linux_files.zip
-    unzip -j apm_insight_oneagent_linux_files.zip -d "$AGENT_INSTALLATION_PATH/bin"
+    if [ -z "$ONEAGENT_FILES_DOWNLOAD_PATH" ]; then
+        ONEAGENT_FILES_DOWNLOAD_PATH="$ONEAGENT_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip"
+    fi
+    if [ -z "$ONEAGENT_FILES_CHECKSUM" ]; then
+        ONEAGENT_FILES_CHECKSUM="$ONEAGENT_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apm_insight_oneagent_linux_files.zip.sha256"
+    fi
+    wget -nv "$ONEAGENT_FILES_DOWNLOAD_PATH"
+    ValidateChecksumAndInstallAgent "apm_insight_oneagent_linux_files.zip" "$ONEAGENT_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -497,11 +495,11 @@ SetupAgents() {
         return
     fi
     RemoveExistingAgentFiles
-    # CreateApmAgentFiles
-    # DownloadAgentFiles
-    # InstallNodeJSDependencies
-    # InstallPythonDependencies
-    # InstallDotNetCoreAgent
+    CreateApmAgentFiles
+    DownloadAgentFiles
+    InstallNodeJSDependencies
+    InstallPythonDependencies
+    InstallDotNetCoreAgent
 }
 
 #CHECK FOR EXISTING JAVA PROCESSES AND LOAD AGENT DYNAMICALLY INTO THE PROCESS
@@ -566,7 +564,6 @@ WriteToAgentConfFile() {
     echo -e "$AGENT_CONF_STR" > "$conf_filepath"
     if [ -f "$conf_filepath" ]; then
         Log "Successfully created the oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
-	#Log "ONEAGENT CONF: $AGENT_CONF_STR"
     else
         Log "Error creating file oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
     fi
@@ -770,10 +767,7 @@ RegisterOneagentService() {
     cp "$AGENT_INSTALLATION_PATH/bin/site24x7apmoneagent.service" /etc/systemd/system/
     Log "$(systemctl enable site24x7apmoneagent.service 2>&1)"
     Log "$(systemctl daemon-reload 2>&1)"
-    cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
-    chmod 644 /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     Log "$(systemctl restart site24x7apmoneagent.service 2>&1)"
-    cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     if systemctl list-unit-files --type=service | grep -q "^site24x7apmoneagent.service"; then
         echo "Service site24x7apmoneagent is registered properly."
     else
@@ -848,7 +842,6 @@ main() {
     SetPreload
     GiveFilePermissions
     RegisterOneagentService
-    cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     RegisterOneagentVersion
     MoveInstallationFiles
     RemoveInstallationFiles
