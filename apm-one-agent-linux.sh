@@ -847,7 +847,7 @@ main() {
     LoadAgentForExistingJavaProcesses
     SetPreload
     GiveFilePermissions
-    #RegisterOneagentService
+    RegisterOneagentService
     cat /opt/site24x7/apmoneagent/conf/oneagentconf.ini
     RegisterOneagentVersion
     MoveInstallationFiles
