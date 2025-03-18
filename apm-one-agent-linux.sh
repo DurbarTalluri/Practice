@@ -561,7 +561,7 @@ WriteToAgentConfFile() {
     AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_DOMAIN=$APMINSIGHT_DOMAIN\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""AGENT_KEY=$AGENT_KEY\n"
     conf_filepath="$AGENT_INSTALLATION_PATH/conf/oneagentconf.ini"
-    echo -e "$AGENT_CONF_STR" > "$conf_filepath"
+    printf "$AGENT_CONF_STR" > "$conf_filepath"
     if [ -f "$conf_filepath" ]; then
         Log "Successfully created the oneagentconf.ini at $AGENT_INSTALLATION_PATH/conf"
     else
