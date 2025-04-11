@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: apminsight-dataexporter-deployment
+  name: site24x7-apminsight-dataexporter-daemonset
 spec:
   selector:
     matchLabels:
-      app: apminsight-dataexporter
+      app: site24x7-apminsight-dataexporter
   template:
     metadata:
       labels:
-        app: apminsight-dataexporter
+        app: site24x7-apminsight-dataexporter
     spec:
       containers:
-      - name: mysql
+      - name: site24x7-apminsight-dataexporter-container
         image: site24x7/apminsight-dataexporter:latest
         env:
-        - name: KEY
-          value: "us_01fcb8343ba842b2e476bd3547972ffe"
+        - name: S247_LICENSE_KEY
+          value: "<license_key>"
         ports:
         - containerPort: 20021
         - containerPort: 20022
