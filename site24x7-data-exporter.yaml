@@ -28,7 +28,7 @@ metadata:
   name: site24x7-apminsight-dataexporter-service
 spec:
   selector:
-    app: apminsight-dataexporter
+    app: site24x7-apminsight-dataexporter
   ports:
     - name: statusport
       protocol: TCP
