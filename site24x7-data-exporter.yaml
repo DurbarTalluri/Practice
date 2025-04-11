@@ -21,3 +21,23 @@ spec:
         - containerPort: 20021
         - containerPort: 20022
         - containerPort: 20023
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: site24x7-apminsight-dataexporter-service
+spec:
+  selector:
+    app: apminsight-dataexporter
+  ports:
+    - name: statusport
+      protocol: TCP
+      port: 20021
+      targetPort: 20021
+    - name: dataport
+      protocol: TCP
+      port: 20022
+      targetPort: 20022
+    - name: downloadport
+      protocol: TCP
+      port: 20023
