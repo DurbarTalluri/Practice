@@ -1,0 +1,197 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: site24x7
+  namespace: default
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: site24x7
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - nodes
+  - pods
+  - services
+  - resourcequotas
+  - replicationcontrollers
+  - limitranges
+  - persistentvolumeclaims
+  - persistentvolumes
+  - namespaces
+  - endpoints
+  - componentstatuses
+  - events
+  verbs: ["list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  resourceNames:
+  - site24x7
+  verbs: ["list", "watch", "get", "patch"]
+- apiGroups: ["extensions"]
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - ingresses
+  verbs: ["list", "watch"]
+- apiGroups: ["apps"]
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs: ["list", "watch"]
+- apiGroups: ["events.k8s.io"]
+  resources:
+  - events
+  verbs: ["list","watch"]
+- apiGroups: ["batch"]
+  resources:
+  - cronjobs
+  - jobs
+  verbs: ["list", "watch"]
+- apiGroups: ["autoscaling"]
+  resources:
+  - horizontalpodautoscalers
+  verbs: ["list", "watch"]
+- apiGroups: ["policy"]
+  resources:
+  - poddisruptionbudgets
+  verbs: ["list", "watch"]
+- apiGroups: ["certificates.k8s.io"]
+  resources:
+  - certificatesigningrequests
+  verbs: ["list", "watch"]
+- apiGroups:  # Kubelet connectivity
+  - ""
+  resources:
+  - nodes/metrics
+  - nodes/stats
+  - nodes/metrics/cadvisor
+  - nodes/proxy
+  verbs:
+  - get
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- nonResourceURLs:
+  - /metrics
+  - /healthz
+  - /livez
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: site24x7
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: site24x7
+subjects:
+- kind: ServiceAccount
+  name: site24x7
+  namespace: default
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: site24x7-agent
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: site24x7-agent
+  updateStrategy:
+      type: RollingUpdate # Only supported in Kubernetes version 1.6 or later.
+  template:
+    metadata:
+      labels:      
+        app: site24x7-agent
+      name: site24x7-agent
+    spec:
+      serviceAccountName: site24x7          
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+      - image: site24x7/docker-agent:release2000
+        imagePullPolicy: Always
+        name: site24x7-agent
+        # securityContext:
+        #   capabilities:
+        #     drop:
+        #       - ALL
+        #   seccompProfile:
+        #     type: RuntimeDefault
+        #   allowPrivilegeEscalation: false
+        #   readOnlyRootFilesystem: true
+        #   runAsNonRoot: true
+        #   runAsUser: 1001010001
+        env:
+          - name: KEY
+            valueFrom:
+              secretKeyRef:
+                name: "site24x7-agent"
+                key: KEY
+          - name: installer
+            value: kubernetes
+          - name: NODE_IP
+            valueFrom:
+              fieldRef:
+                 fieldPath: status.hostIP
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+        volumeMounts:
+          - name: procfs
+            mountPath: /host/proc
+            readOnly: true
+          - name: sysfs
+            mountPath: /host/sys/
+            readOnly: true
+          - name: varfs
+            mountPath: /host/var/
+            readOnly: true
+          - name: etcfs
+            mountPath: /host/etc/
+            readOnly: true
+          - name: site24x7-agent
+            mountPath: /opt/site24x7/
+          - name: clusterconfig
+            mountPath: /etc/site24x7/clusterconfig
+            readOnly: true
+      volumes:
+        - hostPath:
+            path: /proc
+          name: procfs
+        - hostPath:
+            path: /sys/
+          name: sysfs
+        - hostPath:
+            path: /var/
+          name: varfs
+        - hostPath:
+            path: /etc/
+          name: etcfs
+        - emptyDir: {}
+          name: site24x7-agent
+        - configMap:
+            name: site24x7
+            optional: true
+          name: clusterconfig
