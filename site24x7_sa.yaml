@@ -104,6 +104,61 @@ subjects:
   name: site24x7
   namespace: default
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: site24x7
+  namespace: default
+  labels:
+    app.kubernetes.io/name: site24x7
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/owner: site24x7
+data:
+  NODE_AGENT_VERSION: "2000"
+  CLUSTER_AGENT_VERSION: "100"
+  SETTINGS: |
+    {
+      "kubernetes": "300",
+      "daemonsets": "300",
+      "deployments": "300",
+      "statefulsets": "300",
+      "pods": "300",
+      "nodes": "300",
+      "services": "300",
+      "replicasets": "900",
+      "ingresses": "300",
+      "jobs": "300",
+      "pv": "300",
+      "persistentvolumeclaim": "300",
+      "componentstatuses": "300",
+      "horizontalpodautoscalers": "300",
+      "endpoints": "3600",
+      "namespaces": "300",
+      "eventcollector": "60",
+      "npcdatacollector": "300",
+      "npcdatacollector_discovery": "900",
+      "resourcedependency": "300",
+      "workloadsdatacollector": "300",
+      "workloadsdatacollector_discovery": "900",
+      "clustermetricsaggregator": "300",
+      "sidecarnpccollector": "300",
+      "sidecarnpccollector_discovery": "900",
+      "dcinit": "900",
+      "clusteragent": "1",
+      "ksm": "1",
+      "guidancemetrics": "20600",
+      "termination": "900",
+      "kubelet": "300",
+      "metadata": "20600",
+      "prometheus_integration": "1",
+      "plugin_integration": "1",
+      "database_integration": "1",
+      "ksmprocessor": "1",
+      "kubeletdatapersistence": "1",
+      "servicerelationdataprocessor": "1",
+      "yamlfetcher": "60"
+    }
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
