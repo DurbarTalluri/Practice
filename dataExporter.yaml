@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: site24x7-apminsight-dataexporter-daemonset
+  namespace: site24x7
 spec:
   selector:
     matchLabels:
