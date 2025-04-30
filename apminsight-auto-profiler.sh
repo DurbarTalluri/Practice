@@ -78,7 +78,7 @@ ParseAgentDownloadLinks() {
 
 ReadBrandName() {
     AGENT_INSTALLATION_PATH="/opt/$APMINSIGHT_BRAND_LCASE/apminsight"
-    AUTOPROFILER_INFO_FILEPATH="$AGENT_INSTALLATION_PATH/autoprofilerinfo.ini"
+    AUTOPROFILER_INFO_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_config.ini"
     AGENT_ROOT_DIR="/opt/$APMINSIGHT_BRAND_LCASE"
     APMINSIGHT_USER="$APMINSIGHT_BRAND_LCASE-user"
     APMINSIGHT_GROUP="$APMINSIGHT_BRAND_LCASE-group"
@@ -782,8 +782,7 @@ WriteToInfoFile() {
     Log "WRITING TO $AUTOPROFILER_INFO_FILEPATH file"
     mkdir -p "$AGENT_INSTALLATION_PATH"
     touch "$AUTOPROFILER_INFO_FILEPATH"
-    echo "[apminsight_auto_profiler]\nprocesses=apminsight-autoprofiler start\nservice="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nversion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"
-}
+    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"}
 
 checkCompatibility() {
     checkGlibcCompatibility
