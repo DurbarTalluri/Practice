@@ -336,7 +336,7 @@ EncryptLicenseKey() {
     if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
         APMINSIGHT_AGENT_START_TIME=$(echo -n $(date +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
         APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
-        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64)
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64 -A)
         if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
                 Log "Unable to generate the License string. Abandoning the installation process"
                 exit 1
