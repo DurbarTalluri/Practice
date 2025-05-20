@@ -1,8 +1,8 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/products/applications_manager/54974026/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/products/applications_manager/54974026/linux/glibc"
-AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_16_2025/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_16_2025/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
+AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_20_2025/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_20_2025/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="ApplicationsManager"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -336,7 +336,7 @@ EncryptLicenseKey() {
     if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
         APMINSIGHT_AGENT_START_TIME=$(echo -n $(date +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
         APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
-        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64 -A)
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64)
         if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
                 Log "Unable to generate the License string. Abandoning the installation process"
                 exit 1
@@ -410,6 +410,7 @@ SetupAutoProfilerFiles() {
     fi
     wget -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"
     ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -526,19 +527,6 @@ WriteToAgentConfFile() {
     else
         Log "Error creating file autoprofilerconf.ini at $AGENT_INSTALLATION_PATH/conf"
     fi
-}
-
-#CREATE /etc/ld.so.preload FILE AND POPULATE IT
-SetPreload() {
-    Log "SETTING PRELOAD"
-    if [ -f "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" ]; then
-        mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
-        echo "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH" >> "$PRELOAD_FILE_PATH"
-    else
-        Log "autoprofilerloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
-        INSTALLATION_UNSUCCESSFUL="true"
-    fi
-
 }
 
 RemoveInstallationFiles() {
@@ -696,13 +684,13 @@ CheckAndCreateApminsightUser() {
     else
         Log "Creating $APMINSIGHT_USER"
         useradd --system --no-create-home --no-user-group $APMINSIGHT_USER
-        if ! grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
-            echo ''$APMINSIGHT_USER' ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo
-        fi
         if ! ApminsightUserExists; then
             Log "Could not create $APMINSIGHT_USER, Aborting Apminsight AutoProfiler Installation"
             exit 1
         fi
+    fi
+    if ! grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
+        echo ''$APMINSIGHT_USER' ALL=(ALL:ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo
     fi
     CheckAndAddUserToApminsightGroup
 }
@@ -787,7 +775,7 @@ WriteToInfoFile() {
     Log "WRITING TO $AUTOPROFILER_INFO_FILEPATH file"
     mkdir -p "$AGENT_INSTALLATION_PATH"
     touch "$AUTOPROFILER_INFO_FILEPATH"
-    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"
+    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler.service\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"
 }
 
 checkCompatibility() {
@@ -808,7 +796,6 @@ main() {
     SetupAgentConfigurations "$@"
     SetupAutoProfilerFiles
     WriteToAgentConfFile
-    SetPreload
     GiveFilePermissions
     RegisterAutoProfilerService
     RegisterAutoProfilerVersion
