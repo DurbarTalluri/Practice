@@ -1,8 +1,8 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_16_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_16_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
+AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_21_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_21_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -76,6 +76,11 @@ ParseAgentDownloadLinks() {
 }
 
 ReadBrandName() {
+    if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+        DATAEXPORTER_NAME="S247DataExporter"
+    else
+        DATAEXPORTER_NAME="AppManagerDataExporter"
+    fi
     AGENT_INSTALLATION_PATH="/opt/$APMINSIGHT_BRAND_LCASE/apminsight"
     AUTOPROFILER_INFO_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_config.ini"
     AGENT_ROOT_DIR="/opt/$APMINSIGHT_BRAND_LCASE"
@@ -336,7 +341,7 @@ EncryptLicenseKey() {
     if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
         APMINSIGHT_AGENT_START_TIME=$(echo -n $(date +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
         APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
-        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64 -A)
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64)
         if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
                 Log "Unable to generate the License string. Abandoning the installation process"
                 exit 1
@@ -410,6 +415,7 @@ SetupAutoProfilerFiles() {
     fi
     wget -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"
     ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+    mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
     cd "$CURRENT_DIRECTORY"
 }
 
@@ -528,19 +534,6 @@ WriteToAgentConfFile() {
     fi
 }
 
-#CREATE /etc/ld.so.preload FILE AND POPULATE IT
-SetPreload() {
-    Log "SETTING PRELOAD"
-    if [ -f "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" ]; then
-        mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
-        echo "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH" >> "$PRELOAD_FILE_PATH"
-    else
-        Log "autoprofilerloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
-        INSTALLATION_UNSUCCESSFUL="true"
-    fi
-
-}
-
 RemoveInstallationFiles() {
     rm -rf "$TEMP_FOLDER_PATH"
 }
@@ -637,23 +630,9 @@ CheckAgentInstallation() {
         Log "Uninstalling Apminsight AutoProfiler...."
         AUTOPROFILER_OPERATION="uninstall"
         if [ -z "$EXISTING_APMINSIGHT_AUTOPROFILER_VERSION" ]; then
-            Log "Apminsight AutoProfiler is not installed. Aborting uninstallation"
-            exit 1
+            Log "Apminsight AutoProfiler is not found installed. Purging AutoProfiler resources..."
         fi
-        # ReadExistingAutoProfilerPath
-        # if ! [ -f "$EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh" ]; then
-        #     Log "Cannot find apminsight-auto-profiler-uninstall.sh file at Apminsight AutoProfiler installed location: $EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh"
-        #     exit 1
-        # fi
-        # sh "$EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh"
-        if [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh" ]; then
-            sh "$AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh"
-            exit 0
-        else
-            Log "Cannot find apminsight-auto-profiler-uninstall.sh file at Apminsight AutoProfiler installed location: $AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh"
-            exit 1
-        fi
-        exit 0
+        UninstallAutoProfiler
 
     elif [ "$1" = "-upgrade" ]; then
         AUTOPROFILER_OPERATION="upgrade"
@@ -696,13 +675,13 @@ CheckAndCreateApminsightUser() {
     else
         Log "Creating $APMINSIGHT_USER"
         useradd --system --no-create-home --no-user-group $APMINSIGHT_USER
-        if ! grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
-            echo ''$APMINSIGHT_USER' ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo
-        fi
         if ! ApminsightUserExists; then
             Log "Could not create $APMINSIGHT_USER, Aborting Apminsight AutoProfiler Installation"
             exit 1
         fi
+    fi
+    if ! grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
+        echo ''$APMINSIGHT_USER' ALL=(ALL:ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo
     fi
     CheckAndAddUserToApminsightGroup
 }
@@ -787,12 +766,31 @@ WriteToInfoFile() {
     Log "WRITING TO $AUTOPROFILER_INFO_FILEPATH file"
     mkdir -p "$AGENT_INSTALLATION_PATH"
     touch "$AUTOPROFILER_INFO_FILEPATH"
-    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"
+    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler.service\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"
 }
 
 checkCompatibility() {
     checkGlibcCompatibility
     checkGccCompatibility
+}
+
+UninstallAutoProfiler() {
+    Log "$(sed -i "\|$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME|d" /etc/ld.so.preload 2>&1)"
+    Log "$(sed -i "\|$APMINSIGHT_BRAND_UCASE|d" /etc/environment 2>&1)"
+    Log "$(systemctl stop $APMINSIGHT_SERVICE_FILE 2>&1)"
+    Log "$(systemctl disable $APMINSIGHT_SERVICE_FILE 2>&1)"
+    Log "$(rm $APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH 2>&1)"
+    Log "$(sh /opt/$DATAEXPORTER_NAME/bin/service.sh uninstall 2>&1)"
+    Log "$(rm -r /opt/$DATAEXPORTER_NAME 2>&1)"
+    Log "$(pip uninstall --yes apminsight 2>&1)"
+    Log "$(rm /etc/systemd/system/$APMINSIGHT_SERVICE_FILE 2>&1)"
+    if grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
+        Log "$(sudo sed -i '/\b'$APMINSIGHT_USER'\b/d' /etc/sudoers 2>&1)"
+    fi
+    Log "$(systemctl daemon-reload 2>&1)"
+    Log "$(mv $AGENT_STARTUP_LOGFILE_PATH "$AGENT_ROOT_DIR" 2>&1)"
+    Log "$(rm -r $AGENT_INSTALLATION_PATH 2>&1)"
+    exit 0
 }
 
 main() {
@@ -801,14 +799,13 @@ main() {
     ReadBrandName
     RedirectLogs
     checkCompatibility
-    WriteToInfoFile
     CheckAgentInstallation $@
+    WriteToInfoFile
     CheckAndCreateApminsightUser
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
     SetupAutoProfilerFiles
     WriteToAgentConfFile
-    SetPreload
     GiveFilePermissions
     RegisterAutoProfilerService
     RegisterAutoProfilerVersion
