@@ -1,8 +1,8 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/products/applications_manager/54974026/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/products/applications_manager/54974026/linux/glibc"
-AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_21_2025/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_21_2025/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
+AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_21_2025_1/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_21_2025_1/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="ApplicationsManager"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -76,11 +76,6 @@ ParseAgentDownloadLinks() {
 }
 
 ReadBrandName() {
-    if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-        DATAEXPORTER_NAME="S247DataExporter"
-    else
-        DATAEXPORTER_NAME="AppManagerDataExporter"
-    fi
     AGENT_INSTALLATION_PATH="/opt/$APMINSIGHT_BRAND_LCASE/apminsight"
     AUTOPROFILER_INFO_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_config.ini"
     AGENT_ROOT_DIR="/opt/$APMINSIGHT_BRAND_LCASE"
@@ -630,9 +625,23 @@ CheckAgentInstallation() {
         Log "Uninstalling Apminsight AutoProfiler...."
         AUTOPROFILER_OPERATION="uninstall"
         if [ -z "$EXISTING_APMINSIGHT_AUTOPROFILER_VERSION" ]; then
-            Log "Apminsight AutoProfiler is not found installed. Purging AutoProfiler resources..."
+            Log "Apminsight AutoProfiler is not installed. Aborting uninstallation"
+            exit 1
         fi
-        UninstallAutoProfiler
+        # ReadExistingAutoProfilerPath
+        # if ! [ -f "$EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh" ]; then
+        #     Log "Cannot find apminsight-auto-profiler-uninstall.sh file at Apminsight AutoProfiler installed location: $EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh"
+        #     exit 1
+        # fi
+        # sh "$EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh"
+        if [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh" ]; then
+            sh "$AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh"
+            exit 0
+        else
+            Log "Cannot find apminsight-auto-profiler-uninstall.sh file at Apminsight AutoProfiler installed location: $AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh"
+            exit 1
+        fi
+        exit 0
 
     elif [ "$1" = "-upgrade" ]; then
         AUTOPROFILER_OPERATION="upgrade"
@@ -774,33 +783,14 @@ checkCompatibility() {
     checkGccCompatibility
 }
 
-UninstallAutoProfiler() {
-    Log "$(sed -i "\|$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME|d" /etc/ld.so.preload 2>&1)"
-    Log "$(sed -i "\|$APMINSIGHT_BRAND_UCASE|d" /etc/environment 2>&1)"
-    Log "$(systemctl stop $APMINSIGHT_SERVICE_FILE 2>&1)"
-    Log "$(systemctl disable $APMINSIGHT_SERVICE_FILE 2>&1)"
-    Log "$(rm $APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH 2>&1)"
-    Log "$(sh /opt/$DATAEXPORTER_NAME/bin/service.sh uninstall 2>&1)"
-    Log "$(rm -r /opt/$DATAEXPORTER_NAME 2>&1)"
-    Log "$(pip uninstall --yes apminsight 2>&1)"
-    Log "$(rm /etc/systemd/system/$APMINSIGHT_SERVICE_FILE 2>&1)"
-    if grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
-        Log "$(sudo sed -i '/\b'$APMINSIGHT_USER'\b/d' /etc/sudoers 2>&1)"
-    fi
-    Log "$(systemctl daemon-reload 2>&1)"
-    Log "$(mv $AGENT_STARTUP_LOGFILE_PATH "$AGENT_ROOT_DIR" 2>&1)"
-    Log "$(rm -r $AGENT_INSTALLATION_PATH 2>&1)"
-    exit 0
-}
-
 main() {
     CheckArgs $@
     CheckRoot
     ReadBrandName
     RedirectLogs
     checkCompatibility
-    CheckAgentInstallation $@
     WriteToInfoFile
+    CheckAgentInstallation $@
     CheckAndCreateApminsightUser
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
