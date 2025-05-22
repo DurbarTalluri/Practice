@@ -11,6 +11,8 @@ APMINSIGHT_AUTOPROFILER_PATH="/opt"
 PRELOAD_FILE_PATH="/etc/ld.so.preload"
 AGENT_STARTUP_LOGFILE_PATH="$CURRENT_DIRECTORY/apminsight-auto-profiler-install.log"
 STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/autoprofilerconf.ini"
+FS_AUTOPROFILER_STATUS_FILEPATH=""
+INSTALLATION_FAILURE_MESSAGE="ERROR OCCURED WHILE EXECUTING APMINSIGHT AUTOPROFILER SCRIPT"
 
 KUBERNETES_ENV=0
 BUNDLED=0
@@ -48,6 +50,21 @@ AUTOPROFILER_OPERATION="install"
 GLIBC_VERSION_COMPATIBLE="2.23"
 GCC_VERSION_COMPATIBLE="5.4"
 
+exitFunc() {
+  if [ $? -eq 1 ]; then
+    Log "$INSTALLATION_FAILURE_MESSAGE"
+    cat <<EOF > "$FS_AUTOPROFILER_STATUS_FILEPATH"
+{
+  "version": "$APMINSIGHT_AUTOPROFILER_VERSION",
+  "status": "Failed",
+  "failure_message": "$INSTALLATION_FAILURE_MESSAGE"
+}
+EOF
+  fi
+}
+
+trap exitFunc EXIT
+
 displayHelp() {
     echo "Usage: $0 [option] [arguments]\n \n Options:\n"
     echo "  --APMINSIGHT_LICENSE_KEY             To configure the License key"
@@ -59,10 +76,10 @@ displayHelp() {
 CheckArgs() {
     if [ "$*" = "--help" ]; then
         displayHelp
-        exit 1
+        exit 0
     elif [ "$*" = "-version" ]; then
         echo "$APMINSIGHT_AUTOPROFILER_VERSION"
-        exit 1
+        exit 0
     fi
 }
 
@@ -76,6 +93,11 @@ ParseAgentDownloadLinks() {
 }
 
 ReadBrandName() {
+    if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+        DATAEXPORTER_NAME="S247DataExporter"
+    else
+        DATAEXPORTER_NAME="AppManagerDataExporter"
+    fi
     AGENT_INSTALLATION_PATH="/opt/$APMINSIGHT_BRAND_LCASE/apminsight"
     AUTOPROFILER_INFO_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_config.ini"
     AGENT_ROOT_DIR="/opt/$APMINSIGHT_BRAND_LCASE"
@@ -85,6 +107,7 @@ ReadBrandName() {
     APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME="lib"$APMINSIGHT_BRAND_LCASE"apmautoprofilerloader.so"
     APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH="/lib/$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME"
     NEW_PYTHON_PATH="$AGENT_INSTALLATION_PATH/lib/PYTHON/wheels:$AGENT_INSTALLATION_PATH/lib/PYTHON/wheels/apminsight/bootstrap"
+    FS_AUTOPROFILER_STATUS_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_status.json"
     ParseAgentDownloadLinks
 }
 
@@ -115,7 +138,7 @@ Log() {
 
 CheckRoot() {
     if [ "$(id -u)" -ne 0 ]; then
-        Log "Apminsight AutoProfiler installer script is run without root privilege. Please run the script apminsight-auto-profiler.sh with sudo"
+        INSTALLATION_FAILURE_MESSAGE="Apminsight AutoProfiler installer script is run without root privilege. Please run the script apminsight-auto-profiler.sh with sudo"
         exit 1
     fi
 }
@@ -156,8 +179,8 @@ SetArchBasedDownloadPathExtension() {
 	elif [ "$IS_ARM" = "$BOOLEAN_TRUE" ] && [ "$IS_64BIT" = "$BOOLEAN_TRUE" ]; then
 		ARCH_BASED_DOWNLOAD_PATH_EXTENSION="arm64"
 	else
-		Log "Info: $OS_ARCH not supported in this version"
-        exit 0
+		INSTALLATION_FAILURE_MESSAGE="Info: $OS_ARCH not supported in this version"
+        exit 1
     fi
 }
 
@@ -307,8 +330,8 @@ BuildApmHostUrl() {
         ReadDomain
         APMINSIGHT_HOST_URL="https://plusinsight.site24x7.""$APMINSIGHT_DOMAIN:443"
     else
-        Log "Please provide a proper Apminsight Host details. Exiting Installation"
-        exit 0 
+        INSTALLATION_FAILURE_MESSAGE="Apminsight Host details not configured. Exiting Installation"
+        exit 1
     fi
 }
 
@@ -334,11 +357,11 @@ ReadDomain() {
 
 EncryptLicenseKey() {
     if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
-        APMINSIGHT_AGENT_START_TIME=$(echo -n $(date +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
+        APMINSIGHT_AGENT_START_TIME=$(echo -n $(date -u +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
         APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
         APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64)
         if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
-                Log "Unable to generate the License string. Abandoning the installation process"
+                INSTALLATION_FAILURE_MESSAGE="Unable to generate the License string. Abandoning the installation process"
                 exit 1
         fi
     fi
@@ -550,49 +573,33 @@ CompareAgentVersions() {
     CURRENT_AGENT_VERSION_NUM="$(echo "$APMINSIGHT_AUTOPROFILER_VERSION" | sed 's/\.//g')"
     CURRENT_AGENT_VERSION_NUM=$((CURRENT_AGENT_VERSION_NUM))
     if [ "$EXISTING_AGENT_VERSION_NUM" -lt "$CURRENT_AGENT_VERSION_NUM" ]; then
-        # ReadExistingAutoProfilerPath
-        # if [ -f "$EXISTING_AUTOPROFILERPATH/conf/autoprofilerconf.ini" ]; then
-        #     STARTUP_CONF_FILEPATH="$EXISTING_AUTOPROFILERPATH/conf/autoprofilerconf.ini"
-        # fi
-        # AGENT_INSTALLATION_PATH="$EXISTING_AUTOPROFILERPATH"
         if [ -f "$AGENT_INSTALLATION_PATH/conf/autoprofilerconf.ini" ]; then
             STARTUP_CONF_FILEPATH="$AGENT_INSTALLATION_PATH/conf/autoprofilerconf.ini"
         fi
         if [ "$AUTOPROFILER_OPERATION" = "install" ]; then
-            echo -n "An outdated version of Apminsight AutoProfiler exists. Would you like to install the new version?\nPlease enter y[es] or n[o]:"
-            read upgrade
-            if [ "$upgrade" = "y" ] || [ "$upgrade" = "yes" ]; then
-                Log "Proceeding to upgrade Apminsight AutoProfiler"
-                AUTOPROFILER_OPERATION="upgrade"
-                return
-            else
-                exit 0
-            fi
+            INSTALLATION_FAILURE_MESSAGE="An outdated version of Apminsight AutoProfiler exists. Please run sudo sh apminsight-auto-profiler.sh -upgrade to upgrade Apminsight AutoProfiler to latest version"
+            exit 1
         else
             Log "Proceeding to Upgrade the existing Apminsight AutoProfiler of version $EXISTING_APMINSIGHT_AUTOPROFILER_VERSION"
             return
         fi
         
     elif [ "$EXISTING_AGENT_VERSION_NUM" -gt "$CURRENT_AGENT_VERSION_NUM" ]; then
-        Log "Skipping Apminsight AutoProfiler $AUTOPROFILER_OPERATION as Apminsight AutoProfiler with greater version already exists"
-
+        INSTALLATION_FAILURE_MESSAGE="A greater version of Apminsight AutoProfiler already exists. Skipping Apminsight AutoProfiler $AUTOPROFILER_OPERATION"
+        exit 1
     else
-        Log "Skipping Apminsight AutoProfiler $AUTOPROFILER_OPERATION as Apminsight AutoProfiler with the current version already exists"
-    exit 1
+        INSTALLATION_FAILURE_MESSAGE="This version of Apminsight AutoProfiler already exists. Skipping Apminsight AutoProfiler $AUTOPROFILER_OPERATION"
+        exit 1
     fi
 
 }
 
 RegisterAutoProfilerVersion() {
-    if [ "$INSTALLATION_UNSUCCESSFUL" = "true" ]; then
-        Log "Installation unsuccessful"
-        exit 0
-    fi
     if [ -f "/etc/environment" ]; then
         sed -i '/^'$APMINSIGHT_BRAND_UCASE'_APMINSIGHT_AUTOPROFILER_VERSION/d' /etc/environment
-        echo ""$APMINSIGHT_BRAND_UCASE"_APMINSIGHT_AUTOPROFILER_VERSION=$APMINSIGHT_AUTOPROFILER_VERSION" >> "/etc/environment"
-        Log "Registered Apminsight AutoProfiler Version successfully"
     fi
+    echo ""$APMINSIGHT_BRAND_UCASE"_APMINSIGHT_AUTOPROFILER_VERSION=$APMINSIGHT_AUTOPROFILER_VERSION" >> "/etc/environment"
+    Log "Registered Apminsight AutoProfiler Version successfully"
 }
 
 FindKeyValPairInFile() {
@@ -625,23 +632,9 @@ CheckAgentInstallation() {
         Log "Uninstalling Apminsight AutoProfiler...."
         AUTOPROFILER_OPERATION="uninstall"
         if [ -z "$EXISTING_APMINSIGHT_AUTOPROFILER_VERSION" ]; then
-            Log "Apminsight AutoProfiler is not installed. Aborting uninstallation"
-            exit 1
+            Log "Apminsight AutoProfiler is not found installed. Purging AutoProfiler resources..."
         fi
-        # ReadExistingAutoProfilerPath
-        # if ! [ -f "$EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh" ]; then
-        #     Log "Cannot find apminsight-auto-profiler-uninstall.sh file at Apminsight AutoProfiler installed location: $EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh"
-        #     exit 1
-        # fi
-        # sh "$EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh"
-        if [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh" ]; then
-            sh "$AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh"
-            exit 0
-        else
-            Log "Cannot find apminsight-auto-profiler-uninstall.sh file at Apminsight AutoProfiler installed location: $AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh"
-            exit 1
-        fi
-        exit 0
+        UninstallAutoProfiler
 
     elif [ "$1" = "-upgrade" ]; then
         AUTOPROFILER_OPERATION="upgrade"
@@ -685,7 +678,7 @@ CheckAndCreateApminsightUser() {
         Log "Creating $APMINSIGHT_USER"
         useradd --system --no-create-home --no-user-group $APMINSIGHT_USER
         if ! ApminsightUserExists; then
-            Log "Could not create $APMINSIGHT_USER, Aborting Apminsight AutoProfiler Installation"
+            INSTALLATION_FAILURE_MESSAGE="Could not create $APMINSIGHT_USER. Aborting Apminsight AutoProfiler Installation"
             exit 1
         fi
     fi
@@ -709,9 +702,8 @@ RegisterAutoProfilerService() {
     Log "Registering $APMINSIGHT_SERVICE_FILE"
     CheckAndRemoveExistingService
     if ! [ -f "$AGENT_INSTALLATION_PATH/bin/$APMINSIGHT_SERVICE_FILE" ]; then
-        Log "Cannot find Apminsight AutoProfiler service binary. Skipping the service start"
-        INSTALLATION_UNSUCCESSFUL="true"
-        return
+        INSTALLATION_FAILURE_MESSAGE="Cannot find Apminsight AutoProfiler service binary. Skipping the service start"
+        exit 1
     fi
     cp "$AGENT_INSTALLATION_PATH/bin/$APMINSIGHT_SERVICE_FILE" /etc/systemd/system/
     Log "$(systemctl enable $APMINSIGHT_SERVICE_FILE 2>&1)"
@@ -720,22 +712,22 @@ RegisterAutoProfilerService() {
     if systemctl list-unit-files --type=service | grep -q "^$APMINSIGHT_SERVICE_FILE"; then
         echo "$APMINSIGHT_SERVICE_FILE is registered properly."
     else
-        echo "$APMINSIGHT_SERVICE_FILE is not registered properly."
-        INSTALLATION_UNSUCCESSFUL="true"
+        INSTALLATION_FAILURE_MESSAGE="$APMINSIGHT_SERVICE_FILE is not registered properly."
+        exit 1
     fi
 }
 
 checkGlibcCompatibility() {
     if ! command -v ldd >/dev/null 2>&1; then
-        Log "ldd command not found. Unable to check for glibc."
-        exit 0
+        INSTALLATION_FAILURE_MESSAGE="ldd command not found. Unable to check for glibc."
+        exit 1
     fi
 
     if ldd --version 2>/dev/null | grep -iqE "GNU libc|Free Software Foundation|Roland McGrath"; then
         Log "GLIBC detected."
     else
-        Log "GLIBC not detected. Apminsight AutoProfiler is not supported for non-GLIBC distributions for now"
-        exit 0
+        INSTALLATION_FAILURE_MESSAGE="GLIBC not detected. Apminsight AutoProfiler is not supported for non-GLIBC distributions for now"
+        exit 1
     fi
     HOST_LIBC_DIST="glibc"
     GLIBC_VERSION="$(ldd --version | awk 'NR==1{ print $NF }')"
@@ -743,12 +735,12 @@ checkGlibcCompatibility() {
     GLIBC_VERSION_MIN=$(echo "$GLIBC_VERSION" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
     GLIBC_VERSION_COMPATIBLE_MAJ=$(echo "$GLIBC_VERSION_COMPATIBLE" | sed 's/\..*//')
     GLIBC_VERSION_COMPATIBLE_MIN=$(echo "$GLIBC_VERSION_COMPATIBLE" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
-    if [ "$GLIBC_VERSION_MAJ" -lt "$GLIBC_VERSION_COMPATIBLE_MAJ" ]; then
-        Log "GLIBC VERSION INCOMPATIBLE"
+    if [ "$GLIBC_VERSION_MAJ" -lt "$GLIBC_VERSION_COMPATIBLE_MAJ" ]; then 
+        INSTALLATION_FAILURE_MESSAGE="GLIBC VERSION INCOMPATIBLE"
         exit 1
     elif [ "$GLIBC_VERSION_MAJ" -eq "$GLIBC_VERSION_COMPATIBLE_MAJ" ]; then
         if [ "$GLIBC_VERSION_MIN" -lt "$GLIBC_VERSION_COMPATIBLE_MIN" ]; then
-            Log "GLIBC VERSION INCOMPATIBLE"
+            INSTALLATION_FAILURE_MESSAGE="GLIBC VERSION INCOMPATIBLE"
             exit 1
         fi
     fi
@@ -761,11 +753,11 @@ checkGccCompatibility() {
     GCC_VERSION_COMPATIBLE_MAJ=$(echo "$GCC_VERSION_COMPATIBLE" | sed 's/\..*//')
     GCC_VERSION_COMPATIBLE_MIN=$(echo "$GCC_VERSION_COMPATIBLE" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
     if [ "$GCC_VERSION_MAJ" -lt "$GCC_VERSION_COMPATIBLE_MAJ" ]; then
-        Log "GCC VERSION INCOMPATIBLE"
+        INSTALLATION_FAILURE_MESSAGE="GCC VERSION INCOMPATIBLE"
         exit 1
     elif [ "$GCC_VERSION_MAJ" -eq "$GCC_VERSION_COMPATIBLE_MAJ" ]; then
         if [ "$GCC_VERSION_MIN" -lt "$GCC_VERSION_COMPATIBLE_MIN" ]; then
-            Log "GCC VERSION INCOMPATIBLE"
+            INSTALLATION_FAILURE_MESSAGE="GCC VERSION INCOMPATIBLE"
             exit 1
         fi
     fi
@@ -783,14 +775,33 @@ checkCompatibility() {
     checkGccCompatibility
 }
 
+UninstallAutoProfiler() {
+    Log "$(sed -i "\|$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME|d" /etc/ld.so.preload 2>&1)"
+    Log "$(sed -i "\|$APMINSIGHT_BRAND_UCASE|d" /etc/environment 2>&1)"
+    Log "$(systemctl stop $APMINSIGHT_SERVICE_FILE 2>&1)"
+    Log "$(systemctl disable $APMINSIGHT_SERVICE_FILE 2>&1)"
+    Log "$(rm $APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH 2>&1)"
+    Log "$(sh /opt/$DATAEXPORTER_NAME/bin/service.sh uninstall 2>&1)"
+    Log "$(rm -r /opt/$DATAEXPORTER_NAME 2>&1)"
+    Log "$(pip uninstall --yes apminsight 2>&1)"
+    Log "$(rm /etc/systemd/system/$APMINSIGHT_SERVICE_FILE 2>&1)"
+    if grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
+        Log "$(sudo sed -i '/\b'$APMINSIGHT_USER'\b/d' /etc/sudoers 2>&1)"
+    fi
+    Log "$(systemctl daemon-reload 2>&1)"
+    Log "$(mv $AGENT_STARTUP_LOGFILE_PATH "$AGENT_ROOT_DIR" 2>&1)"
+    Log "$(rm -r $AGENT_INSTALLATION_PATH 2>&1)"
+    exit 0
+}
+
 main() {
     CheckArgs $@
     CheckRoot
     ReadBrandName
     RedirectLogs
     checkCompatibility
-    WriteToInfoFile
     CheckAgentInstallation $@
+    WriteToInfoFile
     CheckAndCreateApminsightUser
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
@@ -801,5 +812,6 @@ main() {
     RegisterAutoProfilerVersion
     MoveInstallationFiles
     RemoveInstallationFiles
+    exit 0
     }
 main "$@"
