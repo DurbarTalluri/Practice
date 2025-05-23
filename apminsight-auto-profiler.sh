@@ -1,8 +1,6 @@
 #!/bin/sh
 
-AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/products/applications_manager/54974026/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/products/applications_manager/54974026/linux/glibc"
-AUTOPROFILER_FILES_DOWNLOAD_PATH= https://raw.githubusercontent.com/DurbarTalluri/Practice/appmanager/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM= https://raw.githubusercontent.com/DurbarTalluri/Practice/appmanager/apminsight-auto-profiler-files.zip.sha256
+AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/resources/apminsight/auto-profiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/resources/apminsight/auto-profiler/linux/glibc/"
 APMINSIGHT_BRAND="ApplicationsManager"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -411,30 +409,41 @@ CreateAutoProfilerFiles() {
     touch "$AGENT_INSTALLATION_PATH/conf/apm-agents-versions.json"
 }
 
+DownloadAutoProfilerBinaries() {
+    mkdir -p "$TEMP_FOLDER_PATH"
+    cd "$TEMP_FOLDER_PATH"
+    for host_url in $(echo "$APMINSIGHT_HOST_URL" | tr ',' '\n'); do
+        if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_PATH" ]; then
+            if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+                AUTOPROFILER_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+            elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
+                AUTOPROFILER_FILES_DOWNLOAD_PATH="$host_url""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+            fi
+        fi
+        if [ -z "$AUTOPROFILER_FILES_CHECKSUM" ]; then
+            if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+                AUTOPROFILER_FILES_CHECKSUM="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+            elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
+                AUTOPROFILER_FILES_CHECKSUM="$host_url""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+            fi
+        fi
+        Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_PATH"
+        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"; then
+            ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+        else
+            Log "Failed to Download Apminsight AutoProfiler binaries"
+            continue
+        fi
+    done
+    mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
+    cd "$CURRENT_DIRECTORY"
+}
+
 SetupAutoProfilerFiles() {
     Log "DELETING EXISTING AUTOPROFILER FILES IF ANY"
     RemoveExistingAutoProfilerFiles
     CreateAutoProfilerFiles
-    mkdir -p "$TEMP_FOLDER_PATH"
-    cd "$TEMP_FOLDER_PATH"
-    if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_PATH" ]; then
-        if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-            AUTOPROFILER_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-        elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-            AUTOPROFILER_FILES_DOWNLOAD_PATH="$APMINSIGHT_HOST_URL/""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-        fi
-    fi
-    if [ -z "$AUTOPROFILER_FILES_CHECKSUM" ]; then
-        if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-            AUTOPROFILER_FILES_CHECKSUM="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
-        elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-            AUTOPROFILER_FILES_CHECKSUM="$APMINSIGHT_HOST_URL/""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
-        fi
-    fi
-    wget -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
-    mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
-    cd "$CURRENT_DIRECTORY"
+    DownloadAutoProfilerBinaries
 }
 
 #GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
