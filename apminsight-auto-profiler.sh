@@ -1,8 +1,8 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/products/applications_manager/54974026/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/products/applications_manager/54974026/linux/glibc"
-AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_22_2025/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_22_2025/apminsight_autoprofiler/apminsight_autoprofiler/applicationsmanager/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
+AUTOPROFILER_FILES_DOWNLOAD_PATH= https://raw.githubusercontent.com/DurbarTalluri/Practice/appmanager/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM= https://raw.githubusercontent.com/DurbarTalluri/Practice/appmanager/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="ApplicationsManager"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
