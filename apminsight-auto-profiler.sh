@@ -380,7 +380,7 @@ ValidateChecksumAndInstallAgent() {
     checksumVerificationLink="$2"
     destinationpath="$3"
     checksumfilename="$file-checksum"
-    wget -nv -O "$checksumfilename" $checksumVerificationLink
+    wget --no-check-certificate -nv -O "$checksumfilename" $checksumVerificationLink
     Originalchecksumvalue="$(cat "$checksumfilename")"
     Originalchecksumvalue="$(echo "$Originalchecksumvalue" | tr '[:upper:]' '[:lower:]')"
     Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
@@ -428,7 +428,7 @@ DownloadAutoProfilerBinaries() {
             fi
         fi
         Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_PATH"
-        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"; then
+        if wget --no-check-certificate -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"; then
             ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
         else
             Log "Failed to Download Apminsight AutoProfiler binaries"
