@@ -19,8 +19,6 @@ APMINSIGHT_LICENSE_KEY=""
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 AGENT_CONF_STR=""
 APMINSIGHT_HOST=""
-APMINSIGHT_PORT=""
-APMINSIGHT_PROTOCOL="http"
 APMINSIGHT_HOST_URL=""
 APMINSIGHT_PROXY_URL=""
 APMINSIGHT_DOMAIN="com"
@@ -236,12 +234,6 @@ ReadConfigFromArgs() {
                     APMINSIGHT_LICENSE_KEY=$value     
                 elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
                     APMINSIGHT_PROXY_URL=$value
-                elif [ "$Key" = "APMINSIGHT_HOST" ]; then
-                    APMINSIGHT_HOST=$value
-                elif [ "$Key" = "APMINSIGHT_PORT" ]; then
-                    APMINSIGHT_PORT=$value
-                elif [ "$Key" = "APMINSIGHT_PROTOCOL" ]; then
-                    APMINSIGHT_PROTOCOL=$value
                 elif [ "$Key" = "APMINSIGHT_HOST_URL" ]; then
                     APMINSIGHT_HOST_URL=$value
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
@@ -309,21 +301,8 @@ ReadConfigFromArgs() {
 
 BuildApmHostUrl() {
     if [ -n "$APMINSIGHT_HOST_URL" ]; then
-        LAST_CHAR=$(echo "$APMINSIGHT_HOST_URL" | rev | cut -c1)
-        if [ "$LAST_CHAR" = "/" ]; then
-            APMINSIGHT_HOST_URL="$(echo "$str" | rev | cut -c2- | rev)"
-        fi
+        APMINSIGHT_HOST=$value
         return
-    fi
-    if [ "$APMINSIGHT_HOST" != "" ]; then
-        APMINSIGHT_HOST_URL="$APMINSIGHT_HOST"
-        if [ "$APMINSIGHT_PORT" != "" ]; then
-            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:"$APMINSIGHT_PORT""
-        else
-            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:443"
-        fi
-        APMINSIGHT_HOST_URL="$APMINSIGHT_PROTOCOL://$APMINSIGHT_HOST_URL"
-
     elif [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
         ReadDomain
         APMINSIGHT_HOST_URL="https://plusinsight.site24x7.""$APMINSIGHT_DOMAIN:443"
@@ -380,7 +359,7 @@ ValidateChecksumAndInstallAgent() {
     checksumVerificationLink="$2"
     destinationpath="$3"
     checksumfilename="$file-checksum"
-    wget --no-check-certificate -nv -O "$checksumfilename" $checksumVerificationLink
+    wget -nv -O "$checksumfilename" $checksumVerificationLink
     Originalchecksumvalue="$(cat "$checksumfilename")"
     Originalchecksumvalue="$(echo "$Originalchecksumvalue" | tr '[:upper:]' '[:lower:]')"
     Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
@@ -428,7 +407,7 @@ DownloadAutoProfilerBinaries() {
             fi
         fi
         Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_PATH"
-        if wget --no-check-certificate -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"; then
+        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"; then
             ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
         else
             Log "Failed to Download Apminsight AutoProfiler binaries"
@@ -470,15 +449,6 @@ WriteToAgentConfFile() {
 
 	if [ -n "$APMINSIGHT_PROXY_URL" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROXY_URL=$APMINSIGHT_PROXY_URL\n"
-    fi
-    if [ -n "$APMINSIGHT_HOST" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
-    fi
-    if [ -n "$APMINSIGHT_PORT" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PORT=$APMINSIGHT_PORT\n"
-    fi
-    if [ -n "$APMINSIGHT_PROTOCOL" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROTOCOL=$APMINSIGHT_PROTOCOL\n"
     fi
     if [ -n "$APMINSIGHT_MONITOR_GROUP" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_MONITOR_GROUP=$APMINSIGHT_MONITOR_GROUP\n"
@@ -545,6 +515,9 @@ WriteToAgentConfFile() {
     fi
     if [ -n "$DATAEXPORTER_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_VERSION=$DATAEXPORTER_VERSION\n"
+    fi
+    if [ -n "$APMINSIGHT_HOST" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
     fi
     AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST_URL=$APMINSIGHT_HOST_URL\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_DOMAIN=$APMINSIGHT_DOMAIN\n"
