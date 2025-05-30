@@ -1,8 +1,8 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_22_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/May_22_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
+AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/May_29_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/May_29_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -21,8 +21,6 @@ APMINSIGHT_LICENSE_KEY=""
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 AGENT_CONF_STR=""
 APMINSIGHT_HOST=""
-APMINSIGHT_PORT=""
-APMINSIGHT_PROTOCOL="http"
 APMINSIGHT_HOST_URL=""
 APMINSIGHT_PROXY_URL=""
 APMINSIGHT_DOMAIN="com"
@@ -238,12 +236,6 @@ ReadConfigFromArgs() {
                     APMINSIGHT_LICENSE_KEY=$value     
                 elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
                     APMINSIGHT_PROXY_URL=$value
-                elif [ "$Key" = "APMINSIGHT_HOST" ]; then
-                    APMINSIGHT_HOST=$value
-                elif [ "$Key" = "APMINSIGHT_PORT" ]; then
-                    APMINSIGHT_PORT=$value
-                elif [ "$Key" = "APMINSIGHT_PROTOCOL" ]; then
-                    APMINSIGHT_PROTOCOL=$value
                 elif [ "$Key" = "APMINSIGHT_HOST_URL" ]; then
                     APMINSIGHT_HOST_URL=$value
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
@@ -311,21 +303,8 @@ ReadConfigFromArgs() {
 
 BuildApmHostUrl() {
     if [ -n "$APMINSIGHT_HOST_URL" ]; then
-        LAST_CHAR=$(echo "$APMINSIGHT_HOST_URL" | rev | cut -c1)
-        if [ "$LAST_CHAR" = "/" ]; then
-            APMINSIGHT_HOST_URL="$(echo "$str" | rev | cut -c2- | rev)"
-        fi
+        APMINSIGHT_HOST=$value
         return
-    fi
-    if [ "$APMINSIGHT_HOST" != "" ]; then
-        APMINSIGHT_HOST_URL="$APMINSIGHT_HOST"
-        if [ "$APMINSIGHT_PORT" != "" ]; then
-            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:"$APMINSIGHT_PORT""
-        else
-            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:443"
-        fi
-        APMINSIGHT_HOST_URL="$APMINSIGHT_PROTOCOL://$APMINSIGHT_HOST_URL"
-
     elif [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
         ReadDomain
         APMINSIGHT_HOST_URL="https://plusinsight.site24x7.""$APMINSIGHT_DOMAIN:443"
@@ -359,7 +338,7 @@ EncryptLicenseKey() {
     if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
         APMINSIGHT_AGENT_START_TIME=$(echo -n $(date -u +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
         APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
-        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64)
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64 -A)
         if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
                 INSTALLATION_FAILURE_MESSAGE="Unable to generate the License string. Abandoning the installation process"
                 exit 1
@@ -411,30 +390,41 @@ CreateAutoProfilerFiles() {
     touch "$AGENT_INSTALLATION_PATH/conf/apm-agents-versions.json"
 }
 
+DownloadAutoProfilerBinaries() {
+    mkdir -p "$TEMP_FOLDER_PATH"
+    cd "$TEMP_FOLDER_PATH"
+    for host_url in $(echo "$APMINSIGHT_HOST_URL" | tr ',' '\n'); do
+        if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_PATH" ]; then
+            if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+                AUTOPROFILER_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+            elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
+                AUTOPROFILER_FILES_DOWNLOAD_PATH="$host_url""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+            fi
+        fi
+        if [ -z "$AUTOPROFILER_FILES_CHECKSUM" ]; then
+            if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+                AUTOPROFILER_FILES_CHECKSUM="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+            elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
+                AUTOPROFILER_FILES_CHECKSUM="$host_url""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+            fi
+        fi
+        Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_PATH"
+        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"; then
+            ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+        else
+            Log "Failed to Download Apminsight AutoProfiler binaries"
+            continue
+        fi
+    done
+    mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
+    cd "$CURRENT_DIRECTORY"
+}
+
 SetupAutoProfilerFiles() {
     Log "DELETING EXISTING AUTOPROFILER FILES IF ANY"
     RemoveExistingAutoProfilerFiles
     CreateAutoProfilerFiles
-    mkdir -p "$TEMP_FOLDER_PATH"
-    cd "$TEMP_FOLDER_PATH"
-    if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_PATH" ]; then
-        if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-            AUTOPROFILER_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-        elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-            AUTOPROFILER_FILES_DOWNLOAD_PATH="$APMINSIGHT_HOST_URL/""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-        fi
-    fi
-    if [ -z "$AUTOPROFILER_FILES_CHECKSUM" ]; then
-        if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-            AUTOPROFILER_FILES_CHECKSUM="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
-        elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-            AUTOPROFILER_FILES_CHECKSUM="$APMINSIGHT_HOST_URL/""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
-        fi
-    fi
-    wget -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
-    mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
-    cd "$CURRENT_DIRECTORY"
+    DownloadAutoProfilerBinaries
 }
 
 #GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
@@ -461,15 +451,6 @@ WriteToAgentConfFile() {
 
 	if [ -n "$APMINSIGHT_PROXY_URL" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROXY_URL=$APMINSIGHT_PROXY_URL\n"
-    fi
-    if [ -n "$APMINSIGHT_HOST" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
-    fi
-    if [ -n "$APMINSIGHT_PORT" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PORT=$APMINSIGHT_PORT\n"
-    fi
-    if [ -n "$APMINSIGHT_PROTOCOL" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROTOCOL=$APMINSIGHT_PROTOCOL\n"
     fi
     if [ -n "$APMINSIGHT_MONITOR_GROUP" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_MONITOR_GROUP=$APMINSIGHT_MONITOR_GROUP\n"
@@ -536,6 +517,9 @@ WriteToAgentConfFile() {
     fi
     if [ -n "$DATAEXPORTER_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_VERSION=$DATAEXPORTER_VERSION\n"
+    fi
+    if [ -n "$APMINSIGHT_HOST" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
     fi
     AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST_URL=$APMINSIGHT_HOST_URL\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_DOMAIN=$APMINSIGHT_DOMAIN\n"
