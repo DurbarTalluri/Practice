@@ -1,9 +1,8 @@
 #!/bin/sh
 
-AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_FILES_DOWNLOAD_URL=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/Jun_05_2025_1/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM_URL=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/Jun_05_2025_1/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
-
+AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
+AUTOPROFILER_FILES_DOWNLOAD_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/site24x7/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/site24x7/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -245,30 +244,40 @@ ReadConfigFromArgs() {
                     AGENT_KEY=$value
                 elif [ "$Key" = "CUSTOM_APM_AGENTS" ]; then
                     CUSTOM_APM_AGENTS="$value"
-                elif [ "$Key" = "JAVA_AGENT_DOWNLOAD_PATH" ]; then
-                    JAVA_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "NODEJS_AGENT_DOWNLOAD_PATH" ]; then
-                    NODEJS_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "PYTHON_AGENT_DOWNLOAD_PATH" ]; then
-                    PYTHON_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "DOTNET_AGENT_DOWNLOAD_PATH" ]; then
-                    DOTNET_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "AUTOPROFILER_FILES_DOWNLOAD_PATH" ]; then
-                    AUTOPROFILER_FILES_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "DATAEXPORTER_DOWNLOAD_PATH" ]; then
-                    DATAEXPORTER_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "JAVA_AGENT_CHECKSUM" ]; then
-                    JAVA_AGENT_CHECKSUM="$value"
-                elif [ "$Key" = "NODEJS_AGENT_CHECKSUM" ]; then
-                    NODEJS_AGENT_CHECKSUM="$value"
-                elif [ "$Key" = "PYTHON_AGENT_CHECKSUM" ]; then
-                    PYTHON_AGENT_CHECKSUM="$value"
-                elif [ "$Key" = "DOTNET_AGENT_CHECKSUM" ]; then
-                    DOTNET_AGENT_CHECKSUM="$value"
-                elif [ "$Key" = "AUTOPROFILER_FILES_CHECKSUM" ]; then
-                    AUTOPROFILER_FILES_CHECKSUM="$value"
-                elif [ "$Key" = "DATAEXPORTER_CHECKSUM" ]; then
-                    DATAEXPORTER_CHECKSUM="$value"
+                elif [ "$Key" = "JAVA_AGENT_DOWNLOAD_URL" ]; then
+                    JAVA_AGENT_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "NODEJS_AGENT_DOWNLOAD_URL" ]; then
+                    NODEJS_AGENT_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "PYTHON_AGENT_DOWNLOAD_URL" ]; then
+                    PYTHON_AGENT_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "DOTNET_AGENT_DOWNLOAD_URL" ]; then
+                    DOTNET_AGENT_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "DATAEXPORTER_DOWNLOAD_URL" ]; then
+                    DATAEXPORTER_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "AUTOPROFILER_FILES_DOWNLOAD_URL" ]; then
+                    AUTOPROFILER_FILES_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "JAVA_AGENT_CHECKSUM_VALUE" ]; then
+                    JAVA_AGENT_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "NODEJS_AGENT_CHECKSUM_VALUE" ]; then
+                    NODEJS_AGENT_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "PYTHON_AGENT_CHECKSUM_VALUE" ]; then
+                    PYTHON_AGENT_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "DOTNET_AGENT_CHECKSUM_VALUE" ]; then
+                    DOTNET_AGENT_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "DATAEXPORTER_CHECKSUM_VALUE" ]; then
+                    DATAEXPORTER_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "JAVA_AGENT_CHECKSUM_URL" ]; then
+                    JAVA_AGENT_CHECKSUM_URL="$value"
+                elif [ "$Key" = "NODEJS_AGENT_CHECKSUM_URL" ]; then
+                    NODEJS_AGENT_CHECKSUM_URL="$value"
+                elif [ "$Key" = "PYTHON_AGENT_CHECKSUM_URL" ]; then
+                    PYTHON_AGENT_CHECKSUM_URL="$value"
+                elif [ "$Key" = "DOTNET_AGENT_CHECKSUM_URL" ]; then
+                    DOTNET_AGENT_CHECKSUM_URL="$value"
+                elif [ "$Key" = "DATAEXPORTER_CHECKSUM_URL" ]; then
+                    DATAEXPORTER_CHECKSUM_URL="$value"
+                elif [ "$Key" = "AUTOPROFILER_FILES_CHECKSUM_URL" ]; then
+                    AUTOPROFILER_FILES_CHECKSUM_URL="$value"
                 elif [ "$Key" = "JAVA_AGENT_VERSION" ]; then
                     JAVA_AGENT_VERSION="$value"
                 elif [ "$Key" = "PYTHON_AGENT_VERSION" ]; then
@@ -395,23 +404,23 @@ DownloadAutoProfilerBinaries() {
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
     for host_url in $(echo "$APMINSIGHT_HOST_URL" | tr ',' '\n'); do
-        if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_PATH" ]; then
+        if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_URL" ]; then
             if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-                AUTOPROFILER_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+                AUTOPROFILER_FILES_DOWNLOAD_URL="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
             elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-                AUTOPROFILER_FILES_DOWNLOAD_PATH="$host_url""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+                AUTOPROFILER_FILES_DOWNLOAD_URL="$host_url""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
             fi
         fi
-        if [ -z "$AUTOPROFILER_FILES_CHECKSUM" ]; then
+        if [ -z "$AUTOPROFILER_FILES_CHECKSUM_URL" ]; then
             if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-                AUTOPROFILER_FILES_CHECKSUM="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+                AUTOPROFILER_FILES_CHECKSUM_URL="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
             elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-                AUTOPROFILER_FILES_CHECKSUM="$host_url""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+                AUTOPROFILER_FILES_CHECKSUM_URL="$host_url""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
             fi
         fi
-        Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_PATH"
-        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"; then
-            ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
+        Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_URL"
+        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
+            ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM_URL" "$AGENT_INSTALLATION_PATH/bin"
         else
             Log "Failed to Download Apminsight AutoProfiler binaries"
             continue
@@ -474,47 +483,62 @@ WriteToAgentConfFile() {
     if [ -n "$CUSTOM_APM_AGENTS" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""CUSTOM_APM_AGENTS=$CUSTOM_APM_AGENTS\n"
     fi
-    if [ -n "$JAVA_AGENT_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_DOWNLOAD_PATH=$JAVA_AGENT_DOWNLOAD_PATH\n"
+    if [ -n "$JAVA_AGENT_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_DOWNLOAD_URL=$JAVA_AGENT_DOWNLOAD_URL\n"
     fi
-    if [ -n "$JAVA_AGENT_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_CHECKSUM=$JAVA_AGENT_CHECKSUM\n"
+    if [ -n "$JAVA_AGENT_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_CHECKSUM_VALUE=$JAVA_AGENT_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$JAVA_AGENT_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_CHECKSUM_URL=$JAVA_AGENT_CHECKSUM_URL\n"
     fi
     if [ -n "$JAVA_AGENT_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_VERSION=$JAVA_AGENT_VERSION\n"
     fi
-    if [ -n "$PYTHON_AGENT_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_DOWNLOAD_PATH=$PYTHON_AGENT_DOWNLOAD_PATH\n"
+    if [ -n "$PYTHON_AGENT_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_DOWNLOAD_URL=$PYTHON_AGENT_DOWNLOAD_URL\n"
     fi
-    if [ -n "$PYTHON_AGENT_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_CHECKSUM=$PYTHON_AGENT_CHECKSUM\n"
+    if [ -n "$PYTHON_AGENT_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_CHECKSUM_VALUE=$PYTHON_AGENT_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$PYTHON_AGENT_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_CHECKSUM_URL=$PYTHON_AGENT_CHECKSUM_URL\n"
     fi
     if [ -n "$PYTHON_AGENT_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_VERSION=$PYTHON_AGENT_VERSION\n"
     fi
-    if [ -n "$NODEJS_AGENT_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_DOWNLOAD_PATH=$NODEJS_AGENT_DOWNLOAD_PATH\n"
+    if [ -n "$NODEJS_AGENT_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_DOWNLOAD_URL=$NODEJS_AGENT_DOWNLOAD_URL\n"
     fi
-    if [ -n "$NODEJS_AGENT_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_CHECKSUM=$NODEJS_AGENT_CHECKSUM\n"
+    if [ -n "$NODEJS_AGENT_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_CHECKSUM_VALUE=$NODEJS_AGENT_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$NODEJS_AGENT_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_CHECKSUM_URL=$NODEJS_AGENT_CHECKSUM_URL\n"
     fi
     if [ -n "$NODEJS_AGENT_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_VERSION=$NODEJS_AGENT_VERSION\n"
     fi
-    if [ -n "$DOTNET_AGENT_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_DOWNLOAD_PATH=$DOTNET_AGENT_DOWNLOAD_PATH\n"
+    if [ -n "$DOTNET_AGENT_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_DOWNLOAD_URL=$DOTNET_AGENT_DOWNLOAD_URL\n"
     fi
-    if [ -n "$DOTNET_AGENT_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_CHECKSUM=$DOTNET_AGENT_CHECKSUM\n"
+    if [ -n "$DOTNET_AGENT_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_CHECKSUM_VALUE=$DOTNET_AGENT_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$DOTNET_AGENT_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_CHECKSUM_URL=$DOTNET_AGENT_CHECKSUM_URL\n"
     fi
     if [ -n "$DOTNET_AGENT_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_VERSION=$DOTNET_AGENT_VERSION\n"
     fi
-    if [ -n "$DATAEXPORTER_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_DOWNLOAD_PATH=$DATAEXPORTER_DOWNLOAD_PATH\n"
+    if [ -n "$DATAEXPORTER_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_DOWNLOAD_URL=$DATAEXPORTER_DOWNLOAD_URL\n"
     fi
-    if [ -n "$DATAEXPORTER_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_CHECKSUM=$DATAEXPORTER_CHECKSUM\n"
+    if [ -n "$DATAEXPORTER_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_CHECKSUM_VALUE=$DATAEXPORTER_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$DATAEXPORTER_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_CHECKSUM_URL=$DATAEXPORTER_CHECKSUM_URL\n"
     fi
     if [ -n "$DATAEXPORTER_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_VERSION=$DATAEXPORTER_VERSION\n"
