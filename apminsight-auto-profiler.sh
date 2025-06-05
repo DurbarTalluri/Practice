@@ -1,9 +1,8 @@
 #!/bin/sh
 
-AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/Apr_25_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/Version1.0.0/Apr_25_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
-
+AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
+AUTOPROFILER_FILES_DOWNLOAD_URL=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/Jun_05_2025_1/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM_URL=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/Jun_05_2025_1/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -12,6 +11,8 @@ APMINSIGHT_AUTOPROFILER_PATH="/opt"
 PRELOAD_FILE_PATH="/etc/ld.so.preload"
 AGENT_STARTUP_LOGFILE_PATH="$CURRENT_DIRECTORY/apminsight-auto-profiler-install.log"
 STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/autoprofilerconf.ini"
+FS_AUTOPROFILER_STATUS_FILEPATH=""
+INSTALLATION_FAILURE_MESSAGE="ERROR OCCURED WHILE EXECUTING APMINSIGHT AUTOPROFILER SCRIPT"
 
 KUBERNETES_ENV=0
 BUNDLED=0
@@ -20,8 +21,6 @@ APMINSIGHT_LICENSE_KEY=""
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 AGENT_CONF_STR=""
 APMINSIGHT_HOST=""
-APMINSIGHT_PORT=""
-APMINSIGHT_PROTOCOL="http"
 APMINSIGHT_HOST_URL=""
 APMINSIGHT_PROXY_URL=""
 APMINSIGHT_DOMAIN="com"
@@ -49,6 +48,21 @@ AUTOPROFILER_OPERATION="install"
 GLIBC_VERSION_COMPATIBLE="2.23"
 GCC_VERSION_COMPATIBLE="5.4"
 
+exitFunc() {
+  if [ $? -eq 1 ]; then
+    Log "$INSTALLATION_FAILURE_MESSAGE"
+    cat <<EOF > "$FS_AUTOPROFILER_STATUS_FILEPATH"
+{
+  "version": "$APMINSIGHT_AUTOPROFILER_VERSION",
+  "status": "Failed",
+  "failure_message": "$INSTALLATION_FAILURE_MESSAGE"
+}
+EOF
+  fi
+}
+
+trap exitFunc EXIT
+
 displayHelp() {
     echo "Usage: $0 [option] [arguments]\n \n Options:\n"
     echo "  --APMINSIGHT_LICENSE_KEY             To configure the License key"
@@ -60,10 +74,10 @@ displayHelp() {
 CheckArgs() {
     if [ "$*" = "--help" ]; then
         displayHelp
-        exit 1
+        exit 0
     elif [ "$*" = "-version" ]; then
         echo "$APMINSIGHT_AUTOPROFILER_VERSION"
-        exit 1
+        exit 0
     fi
 }
 
@@ -77,6 +91,11 @@ ParseAgentDownloadLinks() {
 }
 
 ReadBrandName() {
+    if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+        DATAEXPORTER_NAME="S247DataExporter"
+    else
+        DATAEXPORTER_NAME="AppManagerDataExporter"
+    fi
     AGENT_INSTALLATION_PATH="/opt/$APMINSIGHT_BRAND_LCASE/apminsight"
     AUTOPROFILER_INFO_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_config.ini"
     AGENT_ROOT_DIR="/opt/$APMINSIGHT_BRAND_LCASE"
@@ -85,7 +104,8 @@ ReadBrandName() {
     APMINSIGHT_SERVICE_FILE="$APMINSIGHT_BRAND_LCASE""apmautoprofiler.service"
     APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME="lib"$APMINSIGHT_BRAND_LCASE"apmautoprofilerloader.so"
     APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH="/lib/$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME"
-    PYTHON_AGENT_PATH="$AGENT_INSTALLATION_PATH/lib/PYTHON"
+    NEW_PYTHON_PATH="$AGENT_INSTALLATION_PATH/lib/PYTHON/wheels:$AGENT_INSTALLATION_PATH/lib/PYTHON/wheels/apminsight/bootstrap"
+    FS_AUTOPROFILER_STATUS_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_status.json"
     ParseAgentDownloadLinks
 }
 
@@ -116,7 +136,7 @@ Log() {
 
 CheckRoot() {
     if [ "$(id -u)" -ne 0 ]; then
-        Log "Apminsight AutoProfiler installer script is run without root privilege. Please run the script apminsight-auto-profiler.sh with sudo"
+        INSTALLATION_FAILURE_MESSAGE="Apminsight AutoProfiler installer script is run without root privilege. Please run the script apminsight-auto-profiler.sh with sudo"
         exit 1
     fi
 }
@@ -157,8 +177,8 @@ SetArchBasedDownloadPathExtension() {
 	elif [ "$IS_ARM" = "$BOOLEAN_TRUE" ] && [ "$IS_64BIT" = "$BOOLEAN_TRUE" ]; then
 		ARCH_BASED_DOWNLOAD_PATH_EXTENSION="arm64"
 	else
-		Log "Info: $OS_ARCH not supported in this version"
-        exit 0
+		INSTALLATION_FAILURE_MESSAGE="Info: $OS_ARCH not supported in this version"
+        exit 1
     fi
 }
 
@@ -216,12 +236,6 @@ ReadConfigFromArgs() {
                     APMINSIGHT_LICENSE_KEY=$value     
                 elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
                     APMINSIGHT_PROXY_URL=$value
-                elif [ "$Key" = "APMINSIGHT_HOST" ]; then
-                    APMINSIGHT_HOST=$value
-                elif [ "$Key" = "APMINSIGHT_PORT" ]; then
-                    APMINSIGHT_PORT=$value
-                elif [ "$Key" = "APMINSIGHT_PROTOCOL" ]; then
-                    APMINSIGHT_PROTOCOL=$value
                 elif [ "$Key" = "APMINSIGHT_HOST_URL" ]; then
                     APMINSIGHT_HOST_URL=$value
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
@@ -230,38 +244,48 @@ ReadConfigFromArgs() {
                     AGENT_KEY=$value
                 elif [ "$Key" = "CUSTOM_APM_AGENTS" ]; then
                     CUSTOM_APM_AGENTS="$value"
-                elif [ "$Key" = "JAVA_AGENT_DOWNLOAD_PATH" ]; then
-                    JAVA_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "NODEJS_AGENT_DOWNLOAD_PATH" ]; then
-                    NODEJS_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "PYTHON_AGENT_DOWNLOAD_PATH" ]; then
-                    PYTHON_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "DOTNETCORE_AGENT_DOWNLOAD_PATH" ]; then
-                    DOTNETCORE_AGENT_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "AUTOPROFILER_FILES_DOWNLOAD_PATH" ]; then
-                    AUTOPROFILER_FILES_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "DATAEXPORTER_DOWNLOAD_PATH" ]; then
-                    DATAEXPORTER_DOWNLOAD_PATH="$value"
-                elif [ "$Key" = "JAVA_AGENT_CHECKSUM" ]; then
-                    JAVA_AGENT_CHECKSUM="$value"
-                elif [ "$Key" = "NODEJS_AGENT_CHECKSUM" ]; then
-                    NODEJS_AGENT_CHECKSUM="$value"
-                elif [ "$Key" = "PYTHON_AGENT_CHECKSUM" ]; then
-                    PYTHON_AGENT_CHECKSUM="$value"
-                elif [ "$Key" = "DOTNETCORE_AGENT_CHECKSUM" ]; then
-                    DOTNETCORE_AGENT_CHECKSUM="$value"
-                elif [ "$Key" = "AUTOPROFILER_FILES_CHECKSUM" ]; then
-                    AUTOPROFILER_FILES_CHECKSUM="$value"
-                elif [ "$Key" = "DATAEXPORTER_CHECKSUM" ]; then
-                    DATAEXPORTER_CHECKSUM="$value"
+                elif [ "$Key" = "JAVA_AGENT_DOWNLOAD_URL" ]; then
+                    JAVA_AGENT_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "NODEJS_AGENT_DOWNLOAD_URL" ]; then
+                    NODEJS_AGENT_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "PYTHON_AGENT_DOWNLOAD_URL" ]; then
+                    PYTHON_AGENT_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "DOTNET_AGENT_DOWNLOAD_URL" ]; then
+                    DOTNET_AGENT_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "DATAEXPORTER_DOWNLOAD_URL" ]; then
+                    DATAEXPORTER_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "AUTOPROFILER_FILES_DOWNLOAD_URL" ]; then
+                    AUTOPROFILER_FILES_DOWNLOAD_URL="$value"
+                elif [ "$Key" = "JAVA_AGENT_CHECKSUM_VALUE" ]; then
+                    JAVA_AGENT_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "NODEJS_AGENT_CHECKSUM_VALUE" ]; then
+                    NODEJS_AGENT_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "PYTHON_AGENT_CHECKSUM_VALUE" ]; then
+                    PYTHON_AGENT_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "DOTNET_AGENT_CHECKSUM_VALUE" ]; then
+                    DOTNET_AGENT_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "DATAEXPORTER_CHECKSUM_VALUE" ]; then
+                    DATAEXPORTER_CHECKSUM_VALUE="$value"
+                elif [ "$Key" = "JAVA_AGENT_CHECKSUM_URL" ]; then
+                    JAVA_AGENT_CHECKSUM_URL="$value"
+                elif [ "$Key" = "NODEJS_AGENT_CHECKSUM_URL" ]; then
+                    NODEJS_AGENT_CHECKSUM_URL="$value"
+                elif [ "$Key" = "PYTHON_AGENT_CHECKSUM_URL" ]; then
+                    PYTHON_AGENT_CHECKSUM_URL="$value"
+                elif [ "$Key" = "DOTNET_AGENT_CHECKSUM_URL" ]; then
+                    DOTNET_AGENT_CHECKSUM_URL="$value"
+                elif [ "$Key" = "DATAEXPORTER_CHECKSUM_URL" ]; then
+                    DATAEXPORTER_CHECKSUM_URL="$value"
+                elif [ "$Key" = "AUTOPROFILER_FILES_CHECKSUM_URL" ]; then
+                    AUTOPROFILER_FILES_CHECKSUM_URL="$value"
                 elif [ "$Key" = "JAVA_AGENT_VERSION" ]; then
                     JAVA_AGENT_VERSION="$value"
                 elif [ "$Key" = "PYTHON_AGENT_VERSION" ]; then
                     PYTHON_AGENT_VERSION="$value"
                 elif [ "$Key" = "NODEJS_AGENT_VERSION" ]; then
                     NODEJS_AGENT_VERSION="$value"
-                elif [ "$Key" = "DOTNETCORE_AGENT_VERSION" ]; then
-                    DOTNETCORE_AGENT_VERSION="$value"
+                elif [ "$Key" = "DOTNET_AGENT_VERSION" ]; then
+                    DOTNET_AGENT_VERSION="$value"
                 elif [ "$Key" = "DATAEXPORTER_VERSION" ]; then
                     DATAEXPORTER_VERSION="$value"
                 elif [ "$Key" = "APMINSIGHT_DATAEXPORTER_HOST" ]; then
@@ -289,27 +313,14 @@ ReadConfigFromArgs() {
 
 BuildApmHostUrl() {
     if [ -n "$APMINSIGHT_HOST_URL" ]; then
-        LAST_CHAR=$(echo "$APMINSIGHT_HOST_URL" | rev | cut -c1)
-        if [ "$LAST_CHAR" = "/" ]; then
-            APMINSIGHT_HOST_URL="$(echo "$str" | rev | cut -c2- | rev)"
-        fi
+        APMINSIGHT_HOST=$value
         return
-    fi
-    if [ "$APMINSIGHT_HOST" != "" ]; then
-        APMINSIGHT_HOST_URL="$APMINSIGHT_HOST"
-        if [ "$APMINSIGHT_PORT" != "" ]; then
-            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:"$APMINSIGHT_PORT""
-        else
-            APMINSIGHT_HOST_URL="$APMINSIGHT_HOST_URL:443"
-        fi
-        APMINSIGHT_HOST_URL="$APMINSIGHT_PROTOCOL://$APMINSIGHT_HOST_URL"
-
     elif [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
         ReadDomain
         APMINSIGHT_HOST_URL="https://plusinsight.site24x7.""$APMINSIGHT_DOMAIN:443"
     else
-        Log "Please provide a proper Apminsight Host details. Exiting Installation"
-        exit 0 
+        INSTALLATION_FAILURE_MESSAGE="Apminsight Host details not configured. Exiting Installation"
+        exit 1
     fi
 }
 
@@ -335,11 +346,11 @@ ReadDomain() {
 
 EncryptLicenseKey() {
     if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
-        APMINSIGHT_AGENT_START_TIME=$(echo -n $(date +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
+        APMINSIGHT_AGENT_START_TIME=$(echo -n $(date -u +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
         APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
-        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64)
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64 -A)
         if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
-                Log "Unable to generate the License string. Abandoning the installation process"
+                INSTALLATION_FAILURE_MESSAGE="Unable to generate the License string. Abandoning the installation process"
                 exit 1
         fi
     fi
@@ -384,33 +395,46 @@ CreateAutoProfilerFiles() {
     mkdir -p "$AGENT_INSTALLATION_PATH/lib"
     mkdir -p "$AGENT_INSTALLATION_PATH/bin"
     mkdir -p "$AGENT_INSTALLATION_PATH/logs"
+    mkdir -p "$AGENT_INSTALLATION_PATH/agents"
     touch "$AGENT_INSTALLATION_PATH/logs/autoprofilerloader.log"
     touch "$AGENT_INSTALLATION_PATH/conf/apm-agents-versions.json"
+}
+
+DownloadAutoProfilerBinaries() {
+    mkdir -p "$TEMP_FOLDER_PATH"
+    cd "$TEMP_FOLDER_PATH"
+    for host_url in $(echo "$APMINSIGHT_HOST_URL" | tr ',' '\n'); do
+        if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_URL" ]; then
+            if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+                AUTOPROFILER_FILES_DOWNLOAD_URL="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+            elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
+                AUTOPROFILER_FILES_DOWNLOAD_URL="$host_url""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+            fi
+        fi
+        if [ -z "$AUTOPROFILER_FILES_CHECKSUM_URL" ]; then
+            if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+                AUTOPROFILER_FILES_CHECKSUM_URL="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+            elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
+                AUTOPROFILER_FILES_CHECKSUM_URL="$host_url""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+            fi
+        fi
+        Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_URL"
+        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
+            ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM_URL" "$AGENT_INSTALLATION_PATH/bin"
+        else
+            Log "Failed to Download Apminsight AutoProfiler binaries"
+            continue
+        fi
+    done
+    mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
+    cd "$CURRENT_DIRECTORY"
 }
 
 SetupAutoProfilerFiles() {
     Log "DELETING EXISTING AUTOPROFILER FILES IF ANY"
     RemoveExistingAutoProfilerFiles
     CreateAutoProfilerFiles
-    mkdir -p "$TEMP_FOLDER_PATH"
-    cd "$TEMP_FOLDER_PATH"
-    if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_PATH" ]; then
-        if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-            AUTOPROFILER_FILES_DOWNLOAD_PATH="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-        elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-            AUTOPROFILER_FILES_DOWNLOAD_PATH="$APMINSIGHT_HOST_URL/""$AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-        fi
-    fi
-    if [ -z "$AUTOPROFILER_FILES_CHECKSUM" ]; then
-        if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-            AUTOPROFILER_FILES_CHECKSUM="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
-        elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-            AUTOPROFILER_FILES_CHECKSUM="$APMINSIGHT_HOST_URL/""$AUTOPROFILER_FILES_CHECKSUM_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
-        fi
-    fi
-    wget -nv "$AUTOPROFILER_FILES_DOWNLOAD_PATH"
-    ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM" "$AGENT_INSTALLATION_PATH/bin"
-    cd "$CURRENT_DIRECTORY"
+    DownloadAutoProfilerBinaries
 }
 
 #GIVE RESPECTIVE PERMISSIONS TO AGENT FILES
@@ -420,6 +444,8 @@ GiveFilePermissions() {
     chmod 777 -R "$AGENT_INSTALLATION_PATH"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/bin"
     chmod 755 -R "$AGENT_INSTALLATION_PATH/logs"
+    chmod 777 -R "$AGENT_INSTALLATION_PATH/agents"
+    chmod 755 -R "$AGENT_INSTALLATION_PATH/lib"
     chmod 777 -R "$AGENT_INSTALLATION_PATH/logs/autoprofilerloader.log"
     chmod 644 "$PRELOAD_FILE_PATH"
     chmod 644 "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
@@ -431,24 +457,15 @@ RemoveExistingAgentFiles() {
 }
 
 WriteToAgentConfFile() {
-	AGENT_CONF_STR="[ApminsightAutoProfiler]\n"
+	AGENT_CONF_STR="[apminsight_auto_profiler]\n"
 
 	if [ -n "$APMINSIGHT_PROXY_URL" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROXY_URL=$APMINSIGHT_PROXY_URL\n"
     fi
-    if [ -n "$APMINSIGHT_HOST" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
-    fi
-    if [ -n "$APMINSIGHT_PORT" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PORT=$APMINSIGHT_PORT\n"
-    fi
-    if [ -n "$APMINSIGHT_PROTOCOL" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROTOCOL=$APMINSIGHT_PROTOCOL\n"
-    fi
     if [ -n "$APMINSIGHT_MONITOR_GROUP" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_MONITOR_GROUP=$APMINSIGHT_MONITOR_GROUP\n"
     fi
-    if [ -n "$PYTHON_AGENT_PATH" ]; then
+    if [ -n "$NEW_PYTHON_PATH" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""NEW_PYTHON_PATH=$NEW_PYTHON_PATH\n"
     fi
     if [ -n "$APMINSIGHT_LICENSEKEY" ]; then
@@ -466,50 +483,68 @@ WriteToAgentConfFile() {
     if [ -n "$CUSTOM_APM_AGENTS" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""CUSTOM_APM_AGENTS=$CUSTOM_APM_AGENTS\n"
     fi
-    if [ -n "$JAVA_AGENT_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_DOWNLOAD_PATH=$JAVA_AGENT_DOWNLOAD_PATH\n"
+    if [ -n "$JAVA_AGENT_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_DOWNLOAD_URL=$JAVA_AGENT_DOWNLOAD_URL\n"
     fi
-    if [ -n "$JAVA_AGENT_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_CHECKSUM=$JAVA_AGENT_CHECKSUM\n"
+    if [ -n "$JAVA_AGENT_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_CHECKSUM_VALUE=$JAVA_AGENT_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$JAVA_AGENT_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_CHECKSUM_URL=$JAVA_AGENT_CHECKSUM_URL\n"
     fi
     if [ -n "$JAVA_AGENT_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""JAVA_AGENT_VERSION=$JAVA_AGENT_VERSION\n"
     fi
-    if [ -n "$PYTHON_AGENT_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_DOWNLOAD_PATH=$PYTHON_AGENT_DOWNLOAD_PATH\n"
+    if [ -n "$PYTHON_AGENT_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_DOWNLOAD_URL=$PYTHON_AGENT_DOWNLOAD_URL\n"
     fi
-    if [ -n "$PYTHON_AGENT_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_CHECKSUM=$PYTHON_AGENT_CHECKSUM\n"
+    if [ -n "$PYTHON_AGENT_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_CHECKSUM_VALUE=$PYTHON_AGENT_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$PYTHON_AGENT_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_CHECKSUM_URL=$PYTHON_AGENT_CHECKSUM_URL\n"
     fi
     if [ -n "$PYTHON_AGENT_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""PYTHON_AGENT_VERSION=$PYTHON_AGENT_VERSION\n"
     fi
-    if [ -n "$NODEJS_AGENT_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_DOWNLOAD_PATH=$NODEJS_AGENT_DOWNLOAD_PATH\n"
+    if [ -n "$NODEJS_AGENT_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_DOWNLOAD_URL=$NODEJS_AGENT_DOWNLOAD_URL\n"
     fi
-    if [ -n "$NODEJS_AGENT_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_CHECKSUM=$NODEJS_AGENT_CHECKSUM\n"
+    if [ -n "$NODEJS_AGENT_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_CHECKSUM_VALUE=$NODEJS_AGENT_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$NODEJS_AGENT_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_CHECKSUM_URL=$NODEJS_AGENT_CHECKSUM_URL\n"
     fi
     if [ -n "$NODEJS_AGENT_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""NODEJS_AGENT_VERSION=$NODEJS_AGENT_VERSION\n"
     fi
-    if [ -n "$DOTNETCORE_AGENT_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNETCORE_AGENT_DOWNLOAD_PATH=$DOTNETCORE_AGENT_DOWNLOAD_PATH\n"
+    if [ -n "$DOTNET_AGENT_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_DOWNLOAD_URL=$DOTNET_AGENT_DOWNLOAD_URL\n"
     fi
-    if [ -n "$DOTNETCORE_AGENT_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNETCORE_AGENT_CHECKSUM=$DOTNETCORE_AGENT_CHECKSUM\n"
+    if [ -n "$DOTNET_AGENT_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_CHECKSUM_VALUE=$DOTNET_AGENT_CHECKSUM_VALUE\n"
     fi
-    if [ -n "$DOTNETCORE_AGENT_VERSION" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNETCORE_AGENT_VERSION=$DOTNETCORE_AGENT_VERSION\n"
+    if [ -n "$DOTNET_AGENT_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_CHECKSUM_URL=$DOTNET_AGENT_CHECKSUM_URL\n"
     fi
-    if [ -n "$DATAEXPORTER_DOWNLOAD_PATH" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_DOWNLOAD_PATH=$DATAEXPORTER_DOWNLOAD_PATH\n"
+    if [ -n "$DOTNET_AGENT_VERSION" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DOTNET_AGENT_VERSION=$DOTNET_AGENT_VERSION\n"
     fi
-    if [ -n "$DATAEXPORTER_CHECKSUM" ]; then
-        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_CHECKSUM=$DATAEXPORTER_CHECKSUM\n"
+    if [ -n "$DATAEXPORTER_DOWNLOAD_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_DOWNLOAD_URL=$DATAEXPORTER_DOWNLOAD_URL\n"
+    fi
+    if [ -n "$DATAEXPORTER_CHECKSUM_VALUE" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_CHECKSUM_VALUE=$DATAEXPORTER_CHECKSUM_VALUE\n"
+    fi
+    if [ -n "$DATAEXPORTER_CHECKSUM_URL" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_CHECKSUM_URL=$DATAEXPORTER_CHECKSUM_URL\n"
     fi
     if [ -n "$DATAEXPORTER_VERSION" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""DATAEXPORTER_VERSION=$DATAEXPORTER_VERSION\n"
+    fi
+    if [ -n "$APMINSIGHT_HOST" ]; then
+        AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
     fi
     AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST_URL=$APMINSIGHT_HOST_URL\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_DOMAIN=$APMINSIGHT_DOMAIN\n"
@@ -524,19 +559,6 @@ WriteToAgentConfFile() {
     else
         Log "Error creating file autoprofilerconf.ini at $AGENT_INSTALLATION_PATH/conf"
     fi
-}
-
-#CREATE /etc/ld.so.preload FILE AND POPULATE IT
-SetPreload() {
-    Log "SETTING PRELOAD"
-    if [ -f "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" ]; then
-        mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
-        echo "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH" >> "$PRELOAD_FILE_PATH"
-    else
-        Log "autoprofilerloader.so file not found at "$AGENT_INSTALLATION_PATH/bin/""
-        INSTALLATION_UNSUCCESSFUL="true"
-    fi
-
 }
 
 RemoveInstallationFiles() {
@@ -560,49 +582,33 @@ CompareAgentVersions() {
     CURRENT_AGENT_VERSION_NUM="$(echo "$APMINSIGHT_AUTOPROFILER_VERSION" | sed 's/\.//g')"
     CURRENT_AGENT_VERSION_NUM=$((CURRENT_AGENT_VERSION_NUM))
     if [ "$EXISTING_AGENT_VERSION_NUM" -lt "$CURRENT_AGENT_VERSION_NUM" ]; then
-        # ReadExistingAutoProfilerPath
-        # if [ -f "$EXISTING_AUTOPROFILERPATH/conf/autoprofilerconf.ini" ]; then
-        #     STARTUP_CONF_FILEPATH="$EXISTING_AUTOPROFILERPATH/conf/autoprofilerconf.ini"
-        # fi
-        # AGENT_INSTALLATION_PATH="$EXISTING_AUTOPROFILERPATH"
         if [ -f "$AGENT_INSTALLATION_PATH/conf/autoprofilerconf.ini" ]; then
             STARTUP_CONF_FILEPATH="$AGENT_INSTALLATION_PATH/conf/autoprofilerconf.ini"
         fi
         if [ "$AUTOPROFILER_OPERATION" = "install" ]; then
-            echo -n "An outdated version of Apminsight AutoProfiler exists. Would you like to install the new version?\nPlease enter y[es] or n[o]:"
-            read upgrade
-            if [ "$upgrade" = "y" ] || [ "$upgrade" = "yes" ]; then
-                Log "Proceeding to upgrade Apminsight AutoProfiler"
-                AUTOPROFILER_OPERATION="upgrade"
-                return
-            else
-                exit 0
-            fi
+            INSTALLATION_FAILURE_MESSAGE="An outdated version of Apminsight AutoProfiler exists. Please run sudo sh apminsight-auto-profiler.sh -upgrade to upgrade Apminsight AutoProfiler to latest version"
+            exit 1
         else
             Log "Proceeding to Upgrade the existing Apminsight AutoProfiler of version $EXISTING_APMINSIGHT_AUTOPROFILER_VERSION"
             return
         fi
         
     elif [ "$EXISTING_AGENT_VERSION_NUM" -gt "$CURRENT_AGENT_VERSION_NUM" ]; then
-        Log "Skipping Apminsight AutoProfiler $AUTOPROFILER_OPERATION as Apminsight AutoProfiler with greater version already exists"
-
+        INSTALLATION_FAILURE_MESSAGE="A greater version of Apminsight AutoProfiler already exists. Skipping Apminsight AutoProfiler $AUTOPROFILER_OPERATION"
+        exit 1
     else
-        Log "Skipping Apminsight AutoProfiler $AUTOPROFILER_OPERATION as Apminsight AutoProfiler with the current version already exists"
-    exit 1
+        INSTALLATION_FAILURE_MESSAGE="This version of Apminsight AutoProfiler already exists. Skipping Apminsight AutoProfiler $AUTOPROFILER_OPERATION"
+        exit 1
     fi
 
 }
 
 RegisterAutoProfilerVersion() {
-    if [ "$INSTALLATION_UNSUCCESSFUL" = "true" ]; then
-        Log "Installation unsuccessful"
-        exit 0
-    fi
     if [ -f "/etc/environment" ]; then
         sed -i '/^'$APMINSIGHT_BRAND_UCASE'_APMINSIGHT_AUTOPROFILER_VERSION/d' /etc/environment
-        echo ""$APMINSIGHT_BRAND_UCASE"_APMINSIGHT_AUTOPROFILER_VERSION=$APMINSIGHT_AUTOPROFILER_VERSION" >> "/etc/environment"
-        Log "Registered Apminsight AutoProfiler Version successfully"
     fi
+    echo ""$APMINSIGHT_BRAND_UCASE"_APMINSIGHT_AUTOPROFILER_VERSION=$APMINSIGHT_AUTOPROFILER_VERSION" >> "/etc/environment"
+    Log "Registered Apminsight AutoProfiler Version successfully"
 }
 
 FindKeyValPairInFile() {
@@ -635,23 +641,9 @@ CheckAgentInstallation() {
         Log "Uninstalling Apminsight AutoProfiler...."
         AUTOPROFILER_OPERATION="uninstall"
         if [ -z "$EXISTING_APMINSIGHT_AUTOPROFILER_VERSION" ]; then
-            Log "Apminsight AutoProfiler is not installed. Aborting uninstallation"
-            exit 1
+            Log "Apminsight AutoProfiler is not found installed. Purging AutoProfiler resources..."
         fi
-        # ReadExistingAutoProfilerPath
-        # if ! [ -f "$EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh" ]; then
-        #     Log "Cannot find apminsight-auto-profiler-uninstall.sh file at Apminsight AutoProfiler installed location: $EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh"
-        #     exit 1
-        # fi
-        # sh "$EXISTING_AUTOPROFILERPATH/bin/apminsight-auto-profiler-uninstall.sh"
-        if [ -f "$AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh" ]; then
-            sh "$AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh"
-            exit 0
-        else
-            Log "Cannot find apminsight-auto-profiler-uninstall.sh file at Apminsight AutoProfiler installed location: $AGENT_INSTALLATION_PATH/bin/apminsight-auto-profiler-uninstall.sh"
-            exit 1
-        fi
-        exit 0
+        UninstallAutoProfiler
 
     elif [ "$1" = "-upgrade" ]; then
         AUTOPROFILER_OPERATION="upgrade"
@@ -695,9 +687,12 @@ CheckAndCreateApminsightUser() {
         Log "Creating $APMINSIGHT_USER"
         useradd --system --no-create-home --no-user-group $APMINSIGHT_USER
         if ! ApminsightUserExists; then
-            Log "Could not create $APMINSIGHT_USER, Aborting Apminsight AutoProfiler Installation"
+            INSTALLATION_FAILURE_MESSAGE="Could not create $APMINSIGHT_USER. Aborting Apminsight AutoProfiler Installation"
             exit 1
         fi
+    fi
+    if ! grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
+        echo ''$APMINSIGHT_USER' ALL=(ALL:ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo
     fi
     CheckAndAddUserToApminsightGroup
 }
@@ -716,9 +711,8 @@ RegisterAutoProfilerService() {
     Log "Registering $APMINSIGHT_SERVICE_FILE"
     CheckAndRemoveExistingService
     if ! [ -f "$AGENT_INSTALLATION_PATH/bin/$APMINSIGHT_SERVICE_FILE" ]; then
-        Log "Cannot find Apminsight AutoProfiler service binary. Skipping the service start"
-        INSTALLATION_UNSUCCESSFUL="true"
-        return
+        INSTALLATION_FAILURE_MESSAGE="Cannot find Apminsight AutoProfiler service binary. Skipping the service start"
+        exit 1
     fi
     cp "$AGENT_INSTALLATION_PATH/bin/$APMINSIGHT_SERVICE_FILE" /etc/systemd/system/
     Log "$(systemctl enable $APMINSIGHT_SERVICE_FILE 2>&1)"
@@ -727,22 +721,22 @@ RegisterAutoProfilerService() {
     if systemctl list-unit-files --type=service | grep -q "^$APMINSIGHT_SERVICE_FILE"; then
         echo "$APMINSIGHT_SERVICE_FILE is registered properly."
     else
-        echo "$APMINSIGHT_SERVICE_FILE is not registered properly."
-        INSTALLATION_UNSUCCESSFUL="true"
+        INSTALLATION_FAILURE_MESSAGE="$APMINSIGHT_SERVICE_FILE is not registered properly."
+        exit 1
     fi
 }
 
 checkGlibcCompatibility() {
     if ! command -v ldd >/dev/null 2>&1; then
-        Log "ldd command not found. Unable to check for glibc."
-        exit 0
+        INSTALLATION_FAILURE_MESSAGE="ldd command not found. Unable to check for glibc."
+        exit 1
     fi
 
     if ldd --version 2>/dev/null | grep -iqE "GNU libc|Free Software Foundation|Roland McGrath"; then
         Log "GLIBC detected."
     else
-        Log "GLIBC not detected. Apminsight AutoProfiler is not supported for non-GLIBC distributions for now"
-        exit 0
+        INSTALLATION_FAILURE_MESSAGE="GLIBC not detected. Apminsight AutoProfiler is not supported for non-GLIBC distributions for now"
+        exit 1
     fi
     HOST_LIBC_DIST="glibc"
     GLIBC_VERSION="$(ldd --version | awk 'NR==1{ print $NF }')"
@@ -750,12 +744,12 @@ checkGlibcCompatibility() {
     GLIBC_VERSION_MIN=$(echo "$GLIBC_VERSION" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
     GLIBC_VERSION_COMPATIBLE_MAJ=$(echo "$GLIBC_VERSION_COMPATIBLE" | sed 's/\..*//')
     GLIBC_VERSION_COMPATIBLE_MIN=$(echo "$GLIBC_VERSION_COMPATIBLE" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
-    if [ "$GLIBC_VERSION_MAJ" -lt "$GLIBC_VERSION_COMPATIBLE_MAJ" ]; then
-        Log "GLIBC VERSION INCOMPATIBLE"
+    if [ "$GLIBC_VERSION_MAJ" -lt "$GLIBC_VERSION_COMPATIBLE_MAJ" ]; then 
+        INSTALLATION_FAILURE_MESSAGE="GLIBC VERSION INCOMPATIBLE"
         exit 1
     elif [ "$GLIBC_VERSION_MAJ" -eq "$GLIBC_VERSION_COMPATIBLE_MAJ" ]; then
         if [ "$GLIBC_VERSION_MIN" -lt "$GLIBC_VERSION_COMPATIBLE_MIN" ]; then
-            Log "GLIBC VERSION INCOMPATIBLE"
+            INSTALLATION_FAILURE_MESSAGE="GLIBC VERSION INCOMPATIBLE"
             exit 1
         fi
     fi
@@ -768,11 +762,11 @@ checkGccCompatibility() {
     GCC_VERSION_COMPATIBLE_MAJ=$(echo "$GCC_VERSION_COMPATIBLE" | sed 's/\..*//')
     GCC_VERSION_COMPATIBLE_MIN=$(echo "$GCC_VERSION_COMPATIBLE" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
     if [ "$GCC_VERSION_MAJ" -lt "$GCC_VERSION_COMPATIBLE_MAJ" ]; then
-        Log "GCC VERSION INCOMPATIBLE"
+        INSTALLATION_FAILURE_MESSAGE="GCC VERSION INCOMPATIBLE"
         exit 1
     elif [ "$GCC_VERSION_MAJ" -eq "$GCC_VERSION_COMPATIBLE_MAJ" ]; then
         if [ "$GCC_VERSION_MIN" -lt "$GCC_VERSION_COMPATIBLE_MIN" ]; then
-            Log "GCC VERSION INCOMPATIBLE"
+            INSTALLATION_FAILURE_MESSAGE="GCC VERSION INCOMPATIBLE"
             exit 1
         fi
     fi
@@ -782,11 +776,31 @@ WriteToInfoFile() {
     Log "WRITING TO $AUTOPROFILER_INFO_FILEPATH file"
     mkdir -p "$AGENT_INSTALLATION_PATH"
     touch "$AUTOPROFILER_INFO_FILEPATH"
-    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"}
+    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler.service\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"
+}
 
 checkCompatibility() {
     checkGlibcCompatibility
     checkGccCompatibility
+}
+
+UninstallAutoProfiler() {
+    Log "$(sed -i "\|$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME|d" /etc/ld.so.preload 2>&1)"
+    Log "$(sed -i "\|$APMINSIGHT_BRAND_UCASE|d" /etc/environment 2>&1)"
+    Log "$(systemctl stop $APMINSIGHT_SERVICE_FILE 2>&1)"
+    Log "$(systemctl disable $APMINSIGHT_SERVICE_FILE 2>&1)"
+    Log "$(rm $APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH 2>&1)"
+    Log "$(sh /opt/$DATAEXPORTER_NAME/bin/service.sh uninstall 2>&1)"
+    Log "$(rm -r /opt/$DATAEXPORTER_NAME 2>&1)"
+    Log "$(pip uninstall --yes apminsight 2>&1)"
+    Log "$(rm /etc/systemd/system/$APMINSIGHT_SERVICE_FILE 2>&1)"
+    if grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
+        Log "$(sudo sed -i '/\b'$APMINSIGHT_USER'\b/d' /etc/sudoers 2>&1)"
+    fi
+    Log "$(systemctl daemon-reload 2>&1)"
+    Log "$(mv $AGENT_STARTUP_LOGFILE_PATH "$AGENT_ROOT_DIR" 2>&1)"
+    Log "$(rm -r $AGENT_INSTALLATION_PATH 2>&1)"
+    exit 0
 }
 
 main() {
@@ -795,18 +809,18 @@ main() {
     ReadBrandName
     RedirectLogs
     checkCompatibility
-    WriteToInfoFile
     CheckAgentInstallation $@
+    WriteToInfoFile
     CheckAndCreateApminsightUser
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
     SetupAutoProfilerFiles
     WriteToAgentConfFile
-    SetPreload
     GiveFilePermissions
     RegisterAutoProfilerService
     RegisterAutoProfilerVersion
     MoveInstallationFiles
     RemoveInstallationFiles
+    exit 0
     }
 main "$@"
