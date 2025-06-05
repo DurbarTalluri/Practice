@@ -1,8 +1,9 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_PATH_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/May_29_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/May_29_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
+AUTOPROFILER_FILES_DOWNLOAD_PATH=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/Jun_05_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM=https://build.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/Jun_05_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
+
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
