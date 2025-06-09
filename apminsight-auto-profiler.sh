@@ -1,8 +1,8 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_FILES_DOWNLOAD_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/site24x7/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/site24x7/apminsight-auto-profiler-files.zip.sha256
+AUTOPROFILER_FILES_DOWNLOAD_URL=https://build-new.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/Jun_09_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM_URL=https://build-new.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.0_release/Jun_09_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -14,7 +14,6 @@ STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/autoprofilerconf.ini"
 FS_AUTOPROFILER_STATUS_FILEPATH=""
 INSTALLATION_FAILURE_MESSAGE="ERROR OCCURED WHILE EXECUTING APMINSIGHT AUTOPROFILER SCRIPT"
 
-KUBERNETES_ENV=0
 BUNDLED=0
 APMINSIGHT_LICENSEKEY=""
 APMINSIGHT_LICENSE_KEY=""
@@ -185,21 +184,12 @@ SetArchBasedDownloadPathExtension() {
 SetHostArch() {
     HOST_ARCH="$ARCH_BASED_DOWNLOAD_PATH_EXTENSION"
 }
-#DETECT IF KUBERNETES ENVIRONMENT
-DetectKubernetes() {
-    Log "DETECTING KUBERNETES ENVIRONMENT"
-    if [ -n "${KUBERNETES_SERVICE_HOST}" ]; then
-        KUBERNETES_ENV=1
-        Log "KUBERNETES ENVIRONMENT DETECTED"
-    fi
-}
 
 SetupPreInstallationChecks() {
     CheckBit
     CheckARM
     SetArchBasedDownloadPathExtension
     SetHostArch
-    DetectKubernetes
 }
 
 ReadConfigFromFile() {
