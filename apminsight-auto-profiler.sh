@@ -12,7 +12,6 @@ STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/autoprofilerconf.ini"
 FS_AUTOPROFILER_STATUS_FILEPATH=""
 INSTALLATION_FAILURE_MESSAGE="ERROR OCCURED WHILE EXECUTING APMINSIGHT AUTOPROFILER SCRIPT"
 
-KUBERNETES_ENV=0
 BUNDLED=0
 APMINSIGHT_LICENSEKEY=""
 APMINSIGHT_LICENSE_KEY=""
@@ -183,21 +182,12 @@ SetArchBasedDownloadPathExtension() {
 SetHostArch() {
     HOST_ARCH="$ARCH_BASED_DOWNLOAD_PATH_EXTENSION"
 }
-#DETECT IF KUBERNETES ENVIRONMENT
-DetectKubernetes() {
-    Log "DETECTING KUBERNETES ENVIRONMENT"
-    if [ -n "${KUBERNETES_SERVICE_HOST}" ]; then
-        KUBERNETES_ENV=1
-        Log "KUBERNETES ENVIRONMENT DETECTED"
-    fi
-}
 
 SetupPreInstallationChecks() {
     CheckBit
     CheckARM
     SetArchBasedDownloadPathExtension
     SetHostArch
-    DetectKubernetes
 }
 
 ReadConfigFromFile() {
@@ -369,7 +359,7 @@ ValidateChecksumAndInstallAgent() {
     checksumVerificationLink="$2"
     destinationpath="$3"
     checksumfilename="$file-checksum"
-    wget -nv -O "$checksumfilename" $checksumVerificationLink
+    wget --no-check-certificate -nv -O "$checksumfilename" $checksumVerificationLink
     Originalchecksumvalue="$(cat "$checksumfilename")"
     Originalchecksumvalue="$(echo "$Originalchecksumvalue" | tr '[:upper:]' '[:lower:]')"
     Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
@@ -417,7 +407,7 @@ DownloadAutoProfilerBinaries() {
             fi
         fi
         Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_URL"
-        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
+        if wget --no-check-certificate -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
             ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM_URL" "$AGENT_INSTALLATION_PATH/bin"
         else
             Log "Failed to Download Apminsight AutoProfiler binaries"
