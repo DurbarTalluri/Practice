@@ -14,8 +14,8 @@ ProxyPort=0
 ProxyUser=""
 ProxyPassword=""
 DisableAppFilter=false
-OneAgentInstall=false
-OneAgentHomePath=""
+AutoProfilerInstall=false
+AutoProfilerHomePath=""
 OfflineInstall=false
 EncryptedString=""
 InitVector=""
@@ -25,9 +25,9 @@ SaltKey=""
 AgentVersion="6.8.0"
 
 agentZipGLibcUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip"
-agentZipMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/linux/musl/apminsight-dotnetcoreagent-linux.zip"
+agentZipMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/linux/musl/apminsight-dotnetcoreagent-linux.zip"
 checksumGLibcUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip.sha256"
-checksumMuslUrl="https://staticdownloads.site24x7.com/apminsight/checksum/linux/musl/apminsight-dotnetcoreagent-linux.zip.sha256"
+checksumMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/linux/musl/apminsight-dotnetcoreagent-linux.zip.sha256"
 agentZipName="apminsight-dotnetcoreagent-linux.zip"
 
 IsUpdateFound=false
@@ -174,16 +174,16 @@ function CopyFiles() {
 
     CopyAgentFiles "$resolvedPath"
 
-    if [ "$IsUpdateFound" = false ] && [ "$OneAgentInstall" = false ]; then
+    if [ "$IsUpdateFound" = false ] && [ "$AutoProfilerInstall" = false ]; then
         SetEnvironmentVariables "$resolvedPath"
         ModifyConfiguration "$resolvedPath"
-    elif [ "$OneAgentInstall" = true ]; then
-        ModifyConfiguration "$OneAgentHomePath/ApmInsightDotNetCoreAgent"
+    elif [ "$AutoProfilerInstall" = true ]; then
+        ModifyConfiguration "$AutoProfilerHomePath/ApmInsightDotNetCoreAgent"
     fi
 
     find "$resolvedPath/netstandard2.0" -type f -exec chmod +x {} \;
 
-    if [ "$OneAgentInstall" = false ]; then
+    if [ "$AutoProfilerInstall" = false ]; then
         # Set write access for everyone in the <InstallLocation>/ApmInsightDotNetCoreAgent/DotNetCoreAgent directory
         dotNetAgentPath="$installPath/DotNetCoreAgent"
         if [ -d "$dotNetAgentPath" ]; then
@@ -202,9 +202,9 @@ function CopyAgentFiles() {
         PSScriptRoot="$PSScriptRoot/dotnet_core_linux"
     fi
 
-    if [ "$OneAgentInstall" = true ]; then
-        mkdir -p "$OneAgentHomePath/ApmInsightDotNetCoreAgent"
-        cp -r "$PSScriptRoot/Agent/DotNetCoreAgent" "$OneAgentHomePath/ApmInsightDotNetCoreAgent"
+    if [ "$AutoProfilerInstall" = true ]; then
+        mkdir -p "$AutoProfilerHomePath/ApmInsightDotNetCoreAgent"
+        cp -r "$PSScriptRoot/Agent/DotNetCoreAgent" "$AutoProfilerHomePath/ApmInsightDotNetCoreAgent"
     elif [ "$IsUpdateFound" = false ]; then
         cp -r "$PSScriptRoot/Agent/DotNetCoreAgent" "$resolvedPath"
     fi
@@ -323,7 +323,7 @@ function ValidateParameters() {
         Print " * Please provide -Destination parameter."
         flag=true
     fi
-    if [ "$OneAgentInstall" = false ]; then
+    if [ "$AutoProfilerInstall" = false ]; then
         if [ -z "$LicenseKey" ]; then
             Print " * Please provide -LicenseKey parameter."
             flag=true
@@ -339,9 +339,9 @@ function ValidateParameters() {
             flag=true
         fi
     fi
-    if [ "$OneAgentInstall" = true ]; then
-        if [ -z "$OneAgentHomePath" ]; then
-            Print " * Please provide -OneAgentHomePath parameter."
+    if [ "$AutoProfilerInstall" = true ]; then
+        if [ -z "$AutoProfilerHomePath" ]; then
+            Print " * Please provide -AutoProfilerHomePath parameter."
             flag=true
         fi
     fi
@@ -467,12 +467,12 @@ while [ $# -gt 0 ]; do
             DisableAppFilter=true
             shift 1
             ;;
-        -OneAgentInstall)
-            OneAgentInstall=true
+        -AutoProfilerInstall)
+            AutoProfilerInstall=true
             shift 1
             ;;
-        -OneAgentHomePath)
-            OneAgentHomePath="$2"
+        -AutoProfilerHomePath)
+            AutoProfilerHomePath="$2"
             shift 2
             ;;
         -OfflineInstall)
