@@ -79,6 +79,7 @@ function InstallAgent() {
         else
             Print "Setting up the APM Insight .NET Core agent version $AgentVersion."
             CopyFiles "$agentPath"
+	    exit 0
             if [ "$OfflineInstall" = false ]; then
                 rm -rf dotnet_core_linux
             fi
