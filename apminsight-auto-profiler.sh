@@ -44,18 +44,22 @@ APMINSIGHT_AUTOPROFILER_VERSION="1.0.0"
 AUTOPROFILER_OPERATION="install"
 GLIBC_VERSION_COMPATIBLE="2.23"
 GCC_VERSION_COMPATIBLE="5.4"
+AUTOPROFILER_INSTALL_STATUS="Successful"
 
 exitFunc() {
-  if [ $? -eq 1 ]; then
-    Log "$INSTALLATION_FAILURE_MESSAGE"
+    if [ $? -eq 1 ]; then
+        Log "$INSTALLATION_FAILURE_MESSAGE"
+        AUTOPROFILER_INSTALL_STATUS="Failed"
+    else
+        INSTALLATION_FAILURE_MESSAGE=""
+    fi
     cat <<EOF > "$FS_AUTOPROFILER_STATUS_FILEPATH"
-{
-  "version": "$APMINSIGHT_AUTOPROFILER_VERSION",
-  "status": "Failed",
-  "failure_message": "$INSTALLATION_FAILURE_MESSAGE"
-}
+    {
+    "version": "$APMINSIGHT_AUTOPROFILER_VERSION",
+    "status": "$AUTOPROFILER_INSTALL_STATUS",
+    "failure_message": "$INSTALLATION_FAILURE_MESSAGE"
+    }
 EOF
-  fi
 }
 
 trap exitFunc EXIT
@@ -224,8 +228,8 @@ ReadConfigFromArgs() {
                     APMINSIGHT_LICENSE_KEY=$value     
                 elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
                     APMINSIGHT_PROXY_URL=$value
-                elif [ "$Key" = "APMINSIGHT_HOST_URL" ]; then
-                    APMINSIGHT_HOST_URL=$value
+                elif [ "$Key" = "APMINSIGHT_HOST" ]; then
+                    APMINSIGHT_HOST=$value
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
                     APMINSIGHT_MONITOR_GROUP=$value
                 elif [ "$Key" = "AGENT_KEY" ]; then
@@ -300,8 +304,8 @@ ReadConfigFromArgs() {
 }
 
 BuildApmHostUrl() {
-    if [ -n "$APMINSIGHT_HOST_URL" ]; then
-        APMINSIGHT_HOST=$value
+    if [ -n "$APMINSIGHT_HOST" ]; then
+        APMINSIGHT_HOST_URL=$APMINSIGHT_HOST
         return
     elif [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
         ReadDomain
