@@ -1,8 +1,10 @@
 #!/bin/bash
+
 cd "$(dirname "$(realpath "$0")")" || {
     echo "Failed to switch to script directory"
     exit 1
 }
+
 # Define variables
 Destination=""
 InstallType="global"
@@ -25,9 +27,8 @@ InitVector=""
 SaltKey=""
 
 
-AgentVersion="6.8.0"
+AgentVersion="6.9.4"
 
-agentZipGLibcUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip"
 agentZipMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/linux/musl/apminsight-dotnetcoreagent-linux.zip"
 checksumGLibcUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip.sha256"
 checksumMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/linux/musl/apminsight-dotnetcoreagent-linux.zip.sha256"
@@ -158,10 +159,6 @@ function CopyFiles() {
     agentPath=$1
     mkdir -p "$agentPath"
 
-    if [ "$IsUpdateFound" = false ] && [ "$IgnoreFolderPermission" = false ]; then
-        SetFolderPermissions "$agentPath"
-    fi
-
     resolvedPath=$(realpath "$agentPath")
 
 	# Rename existing .dll files
@@ -192,9 +189,17 @@ function CopyFiles() {
         if [ -d "$dotNetAgentPath" ]; then
             sudo chmod -R 777 "$dotNetAgentPath"
         fi
+    elif [ "$AutoProfilerInstall" = true ]; then
+		if [ -d "$AutoProfilerHomePath" ]; then
+            sudo chmod -R 777 "$AutoProfilerHomePath"
+        fi		
     fi
 
     CreateVersionInfoFile "$resolvedPath"
+	
+	if [ "$IsUpdateFound" = false ] && [ "$IgnoreFolderPermission" = false ]; then
+        SetFolderPermissions "$agentPath"
+    fi
 }
 
 function CopyAgentFiles() {
@@ -373,7 +378,12 @@ function SetFolderPermissions() {
     
     # Set default permissions for the entire installation location
     sudo chown -R $USER:$USER "$directory"
-    sudo chmod -R 755 "$directory"
+	
+	if [ "$AutoProfilerInstall" = false ]; then
+        sudo chmod -R 755 "$directory"
+    elif [ "$AutoProfilerInstall" = true ]; then
+		sudo chmod -R 777 "$directory"	
+    fi
 }
 
 function generate_random_salt_key() {
