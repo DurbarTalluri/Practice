@@ -1,5 +1,8 @@
 #!/bin/bash
-
+cd "$(dirname "$(realpath "$0")")" || {
+    echo "Failed to switch to script directory"
+    exit 1
+}
 # Define variables
 Destination=""
 InstallType="global"
