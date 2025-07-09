@@ -1,8 +1,6 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_FILES_DOWNLOAD_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/site24x7/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/site24x7/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -13,8 +11,7 @@ AGENT_STARTUP_LOGFILE_PATH="$CURRENT_DIRECTORY/apminsight-auto-profiler-install.
 STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/autoprofilerconf.ini"
 FS_AUTOPROFILER_STATUS_FILEPATH=""
 INSTALLATION_FAILURE_MESSAGE="ERROR OCCURED WHILE EXECUTING APMINSIGHT AUTOPROFILER SCRIPT"
-
-KUBERNETES_ENV=0
+APMINSIGHT_AUTOPROFILER_CONF_SECTION=apminsight_auto_profiler
 BUNDLED=0
 APMINSIGHT_LICENSEKEY=""
 APMINSIGHT_LICENSE_KEY=""
@@ -47,18 +44,22 @@ APMINSIGHT_AUTOPROFILER_VERSION="1.0.0"
 AUTOPROFILER_OPERATION="install"
 GLIBC_VERSION_COMPATIBLE="2.23"
 GCC_VERSION_COMPATIBLE="5.4"
+AUTOPROFILER_INSTALL_STATUS="Successful"
 
 exitFunc() {
-  if [ $? -eq 1 ]; then
-    Log "$INSTALLATION_FAILURE_MESSAGE"
+    if [ $? -eq 1 ]; then
+        Log "$INSTALLATION_FAILURE_MESSAGE"
+        AUTOPROFILER_INSTALL_STATUS="Failed"
+    else
+        INSTALLATION_FAILURE_MESSAGE=""
+    fi
     cat <<EOF > "$FS_AUTOPROFILER_STATUS_FILEPATH"
-{
-  "version": "$APMINSIGHT_AUTOPROFILER_VERSION",
-  "status": "Failed",
-  "failure_message": "$INSTALLATION_FAILURE_MESSAGE"
-}
+    {
+    "version": "$APMINSIGHT_AUTOPROFILER_VERSION",
+    "status": "$AUTOPROFILER_INSTALL_STATUS",
+    "failure_message": "$INSTALLATION_FAILURE_MESSAGE"
+    }
 EOF
-  fi
 }
 
 trap exitFunc EXIT
@@ -185,21 +186,12 @@ SetArchBasedDownloadPathExtension() {
 SetHostArch() {
     HOST_ARCH="$ARCH_BASED_DOWNLOAD_PATH_EXTENSION"
 }
-#DETECT IF KUBERNETES ENVIRONMENT
-DetectKubernetes() {
-    Log "DETECTING KUBERNETES ENVIRONMENT"
-    if [ -n "${KUBERNETES_SERVICE_HOST}" ]; then
-        KUBERNETES_ENV=1
-        Log "KUBERNETES ENVIRONMENT DETECTED"
-    fi
-}
 
 SetupPreInstallationChecks() {
     CheckBit
     CheckARM
     SetArchBasedDownloadPathExtension
     SetHostArch
-    DetectKubernetes
 }
 
 ReadConfigFromFile() {
@@ -236,8 +228,8 @@ ReadConfigFromArgs() {
                     APMINSIGHT_LICENSE_KEY=$value     
                 elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
                     APMINSIGHT_PROXY_URL=$value
-                elif [ "$Key" = "APMINSIGHT_HOST_URL" ]; then
-                    APMINSIGHT_HOST_URL=$value
+                elif [ "$Key" = "APMINSIGHT_HOST" ]; then
+                    APMINSIGHT_HOST=$value
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
                     APMINSIGHT_MONITOR_GROUP=$value
                 elif [ "$Key" = "AGENT_KEY" ]; then
@@ -300,6 +292,9 @@ ReadConfigFromArgs() {
             -uninstall)
                 :
                 ;;
+            -update)
+                :
+                ;;
             *)
                 Log "Unknown argument: $Key"
                 ;;
@@ -312,8 +307,8 @@ ReadConfigFromArgs() {
 }
 
 BuildApmHostUrl() {
-    if [ -n "$APMINSIGHT_HOST_URL" ]; then
-        APMINSIGHT_HOST=$value
+    if [ -n "$APMINSIGHT_HOST" ]; then
+        APMINSIGHT_HOST_URL=$APMINSIGHT_HOST
         return
     elif [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
         ReadDomain
@@ -371,7 +366,7 @@ ValidateChecksumAndInstallAgent() {
     checksumVerificationLink="$2"
     destinationpath="$3"
     checksumfilename="$file-checksum"
-    wget -nv -O "$checksumfilename" $checksumVerificationLink
+    wget --no-check-certificate -nv -O "$checksumfilename" $checksumVerificationLink
     Originalchecksumvalue="$(cat "$checksumfilename")"
     Originalchecksumvalue="$(echo "$Originalchecksumvalue" | tr '[:upper:]' '[:lower:]')"
     Downloadfilechecksumvalue="$(sha256sum $file | awk -F' ' '{print $1}')"
@@ -419,7 +414,7 @@ DownloadAutoProfilerBinaries() {
             fi
         fi
         Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_URL"
-        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
+        if wget --no-check-certificate -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
             ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM_URL" "$AGENT_INSTALLATION_PATH/bin"
         else
             Log "Failed to Download Apminsight AutoProfiler binaries"
@@ -457,7 +452,7 @@ RemoveExistingAgentFiles() {
 }
 
 WriteToAgentConfFile() {
-	AGENT_CONF_STR="[apminsight_auto_profiler]\n"
+	AGENT_CONF_STR="[$APMINSIGHT_AUTOPROFILER_CONF_SECTION]\n"
 
 	if [ -n "$APMINSIGHT_PROXY_URL" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_PROXY_URL=$APMINSIGHT_PROXY_URL\n"
@@ -635,6 +630,75 @@ ReadExistingAutoProfilerPath() {
     FindKeyValPairInFile "/etc/environment" "AUTOPROFILERPATH" "EXISTING_AUTOPROFILERPATH"
 }
 
+UpdateAutoProfilerConfig() {
+    AUTOPROFILER_CONF_FILEPATH="$AGENT_INSTALLATION_PATH/conf/autoprofilerconf.ini"
+    EXISTING_CONFIG=$(<"$AUTOPROFILER_CONF_FILEPATH")
+    CHANGED_CONFIGS=""
+    for key in $@; do
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --*=*)
+                    Key_val_pair="${1#--}"
+                    Key=$(echo "$Key_val_pair" | cut -d '=' -f 1 | sed 's/[[:space:]]*$//')
+                    value=$(echo "$Key_val_pair" | cut -d '=' -f 2- | sed 's/^[[:space:]]*//')
+                    if [ -z "$value" ] || [ "$value" = "0" ]; then
+                        Log "Unacceptable value $value for the argument: $Key"
+                    elif [ "$Key" = "APMINSIGHT_LICENSE_KEY" ]; then
+                        APMINSIGHT_LICENSE_KEY=$value
+                        EncryptLicenseKey
+                        if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+                            ReadDomain
+                            APMINSIGHT_HOST_URL="https://plusinsight.site24x7.""$APMINSIGHT_DOMAIN:443"
+                        fi
+                        CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_LICENSEKEY APMINSIGHT_DOMAIN APMINSIGHT_AGENT_START_TIME APMINSIGHT_AGENT_ID APMINSIGHT_HOST_URL"
+                    elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
+                        APMINSIGHT_PROXY_URL=$value
+                        CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_PROXY_URL"
+                    elif [ "$Key" = "APMINSIGHT_HOST" ]; then
+                        APMINSIGHT_HOST=$value
+                        APMINSIGHT_HOST_URL="$APMINSIGHT_HOST"
+                        CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_HOST APMINSIGHT_HOST_URL"
+                    elif [ "$Key" = "AGENT_KEY" ]; then
+                        Log "AGENT_KEY"
+                        AGENT_KEY=$value
+                        CHANGED_CONFIGS="$CHANGED_CONFIGS AGENT_KEY"
+                    else
+                        Log "Invalid argument name for AutoProfiler Config Update : $Key. Please provide a valid one"
+                    fi
+                    ;;
+                -upgrade)
+                    :
+                    ;;
+                -uninstall)
+                    :
+                    ;;
+                -update)
+                    :
+                    ;;
+                *)
+                    Log "Unknown argument: $Key"
+                    ;;
+            esac
+            shift 1
+        done
+    done
+    if grep -q "^\[$APMINSIGHT_AUTOPROFILER_CONF_SECTION\]" $AUTOPROFILER_CONF_FILEPATH; then
+        for config in $CHANGED_CONFIGS; do
+            Log "CONFIG: $config"
+            eval "config_val=\$$config"
+            VALUE="$(printf '%s\n' "$config_val" | sed 's/[&/\]/\\&/g')"
+            if grep -A10 "^\[$APMINSIGHT_AUTOPROFILER_CONF_SECTION\]" $AUTOPROFILER_CONF_FILEPATH | grep -q "^$config *= *"; then
+                sed -i "/^\[$APMINSIGHT_AUTOPROFILER_CONF_SECTION\]/,/^\[/ s/^$config *= *.*/$config = $VALUE/" $AUTOPROFILER_CONF_FILEPATH
+            else
+                sed -i "/^\[$APMINSIGHT_AUTOPROFILER_CONF_SECTION\]/a $config = $VALUE" $AUTOPROFILER_CONF_FILEPATH
+            fi
+        done
+    else
+        Log "No AutoProfiler Configuration File detected to update..."
+        exit 0  
+    fi
+}
+
 CheckAgentInstallation() {
     FindKeyValPairInFile "/etc/environment" ""$APMINSIGHT_BRAND_UCASE"_APMINSIGHT_AUTOPROFILER_VERSION" "EXISTING_APMINSIGHT_AUTOPROFILER_VERSION"
     if [ "$1" = "-uninstall" ]; then
@@ -655,7 +719,13 @@ CheckAgentInstallation() {
         else
             Log "Upgrading Apminsight AutoProfiler..."
         fi
-
+    elif [ "$1" = "-update" ]; then
+        Log "Updating Apminsight AutoProfiler Configurations..."
+        if [ -z "$EXISTING_APMINSIGHT_AUTOPROFILER_VERSION" ]; then
+            Log "Apminsight AutoProfiler is not found installed. Purging AutoProfiler resources..."
+        fi
+        UpdateAutoProfilerConfig $@
+        exit 0
     else
         if [ -z "$EXISTING_APMINSIGHT_AUTOPROFILER_VERSION" ]; then
             Log "Installing Apminsight AutoProfiler..."
