@@ -27,7 +27,7 @@ InitVector=""
 SaltKey=""
 
 
-AgentVersion="6.9.4"
+AgentVersion="6.9.5"
 
 agentZipGLibcUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip"
 agentZipMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/linux/musl/apminsight-dotnetcoreagent-linux.zip"
@@ -191,14 +191,14 @@ function CopyFiles() {
             sudo chmod -R 777 "$dotNetAgentPath"
         fi
     elif [ "$AutoProfilerInstall" = true ]; then
-		if [ -d "$AutoProfilerHomePath" ]; then
+        if [ -d "$AutoProfilerHomePath" ]; then
             sudo chmod -R 777 "$AutoProfilerHomePath"
         fi		
     fi
 
     CreateVersionInfoFile "$resolvedPath"
 	
-	if [ "$IsUpdateFound" = false ] && [ "$IgnoreFolderPermission" = false ]; then
+    if [ "$IsUpdateFound" = false ] && [ "$IgnoreFolderPermission" = false ]; then
         SetFolderPermissions "$agentPath"
     fi
 }
@@ -377,13 +377,16 @@ function CheckAdminRights() {
 function SetFolderPermissions() {
     directory=$1
     
-    # Set default permissions for the entire installation location
-    sudo chown -R $USER:$USER "$directory"
+    # Determine the correct user: if run with sudo, get original user
+    ACTUAL_USER=${SUDO_USER:-$USER}
+
+    # Set ownership to the original user who invoked sudo or to $USER
+    sudo chown -R "$ACTUAL_USER":"$ACTUAL_USER" "$directory"
 	
-	if [ "$AutoProfilerInstall" = false ]; then
+    if [ "$AutoProfilerInstall" = false ]; then
         sudo chmod -R 755 "$directory"
     elif [ "$AutoProfilerInstall" = true ]; then
-		sudo chmod -R 777 "$directory"	
+        sudo chmod -R 777 "$directory"	
     fi
 }
 
