@@ -232,6 +232,8 @@ ReadConfigFromArgs() {
                     APMINSIGHT_PROXY_URL=$value
                 elif [ "$Key" = "APMINSIGHT_HOST" ]; then
                     APMINSIGHT_HOST=$value
+                elif [ "$Key" = "APMINSIGHT_HOST_URL" ]; then
+                    APMINSIGHT_HOST_URL=$value
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
                     APMINSIGHT_MONITOR_GROUP=$value
                 elif [ "$Key" = "AGENT_KEY" ]; then
@@ -309,7 +311,9 @@ ReadConfigFromArgs() {
 }
 
 BuildApmHostUrl() {
-    if [ -n "$APMINSIGHT_HOST" ]; then
+    if [ -n "$APMINSIGHT_HOST_URL" ]; then
+        return
+    elif [ -n "$APMINSIGHT_HOST" ]; then
         APMINSIGHT_HOST_URL=$APMINSIGHT_HOST
         return
     elif [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
