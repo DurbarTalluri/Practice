@@ -1,6 +1,8 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
+AUTOPROFILER_FILES_DOWNLOAD_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
