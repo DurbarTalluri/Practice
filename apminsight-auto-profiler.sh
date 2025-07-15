@@ -857,7 +857,7 @@ WriteToInfoFile() {
 
 checkCompatibility() {
     checkGlibcCompatibility
-    checkGccCompatibility
+    #checkGccCompatibility
 }
 
 UninstallAutoProfiler() {
