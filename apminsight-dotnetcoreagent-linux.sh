@@ -24,15 +24,15 @@ AutoProfilerHomePath=""
 OfflineInstall=false
 EncryptedString=""
 InitVector=""
+DOWNLOAD_DOMAIN=""
 SaltKey=""
 
 
-AgentVersion="6.9.5"
+AgentVersion="7.0.0"
 
-agentZipGLibcUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip"
-agentZipMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/linux/musl/apminsight-dotnetcoreagent-linux.zip"
-checksumGLibcUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip.sha256"
-checksumMuslUrl="https://staticdownloads.site24x7.com/apminsight/agents/dotnet/linux/musl/apminsight-dotnetcoreagent-linux.zip.sha256"
+#These Agent .so files will also support the musl build for the AMD64 arch.
+agentZipGLibcUrl="apminsight/agents/dotnet/linux/glibc/apminsight-dotnetcoreagent-linux.zip"
+checksumGLibcUrl="apminsight/agents/dotnet/linux/glibc/apminsight-dotnetcoreagent-linux.zip.sha256"
 agentZipName="apminsight-dotnetcoreagent-linux.zip"
 
 IsUpdateFound=false
@@ -95,16 +95,57 @@ function InstallAgent() {
         fi
 }
 
+SetDownloadDomain() {
+
+    case "${LicenseKey}" in
+    eu_*)
+        DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.eu"
+        ;;
+    cn_*)
+        DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.cn"
+        ;;
+    in_*)
+        DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.in"
+        ;;
+    au_*)
+        DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.net.au"
+        ;;
+    jp_*)
+        DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.jp"
+        ;;
+    ca_*)
+		DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.ca"
+		;;
+	uk_*)
+		DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.uk"
+		;;
+	sa_*)
+		DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.sa"
+		;;
+    aa_*)
+        DOWNLOAD_DOMAIN="http://staticdownloads.localsite24x7.com"
+        ;;
+    ab_*)
+        DOWNLOAD_DOMAIN="http://staticdownloads.localsite24x7.com"
+        ;;
+    *)
+        DOWNLOAD_DOMAIN="https://staticdownloads.site24x7.com"
+        ;;
+    esac
+}
+
 function DownloadAndExtractAgent() {
+
+    SetDownloadDomain
+
+    agentUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip"#"${DOWNLOAD_DOMAIN}/${agentZipGLibcUrl}"
+    checksumUrl="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-dotnetcoreagent-linux.zip.sha256"#"${DOWNLOAD_DOMAIN}/${checksumGLibcUrl}"
+    
     # Determine the system's libc implementation and set URLs
-    if ldd --version 2>&1 | grep -q 'GLIBC'; then
+    if ldd --version 2>/dev/null | grep -iqE "GNU libc|Free Software Foundation|Roland McGrath"; then
         echo "System uses glibc"
-        agentUrl="$agentZipGLibcUrl"
-        checksumUrl="$checksumGLibcUrl"
     else
         echo "System uses musl"
-        agentUrl="$agentZipMuslUrl"
-        checksumUrl="$checksumMuslUrl"
     fi
 
     # Download the agent zip file
@@ -184,6 +225,10 @@ function CopyFiles() {
 
     find "$resolvedPath/netstandard2.0" -type f -exec chmod +x {} \;
 
+    if [ "$IsUpdateFound" = false ] && [ "$IgnoreFolderPermission" = false ]; then
+        SetFolderPermissions "$agentPath"
+    fi
+
     if [ "$AutoProfilerInstall" = false ]; then
         # Set write access for everyone in the <InstallLocation>/ApmInsightDotNetCoreAgent/DotNetCoreAgent directory
         dotNetAgentPath="$installPath/DotNetCoreAgent"
@@ -197,10 +242,6 @@ function CopyFiles() {
     fi
 
     CreateVersionInfoFile "$resolvedPath"
-	
-    if [ "$IsUpdateFound" = false ] && [ "$IgnoreFolderPermission" = false ]; then
-        SetFolderPermissions "$agentPath"
-    fi
 }
 
 function CopyAgentFiles() {
@@ -242,8 +283,8 @@ function ModifyConfiguration() {
     filePath="$agentPath/DotNetCoreAgent/apminsight.conf"
     if [ -f "$filePath" ]; then
         sed -i "s|license.key=.*|license.key=$EncryptedString|" "$filePath"
-        sed -i "s|agent_start_time=.*|agent_start_time=$SaltKey|" "$filePath"
-        sed -i "s|agent_id=.*|agent_id=$InitVector|" "$filePath"
+        sed -i "s|apminsight_agent_start_time=.*|apminsight_agent_start_time=$SaltKey|" "$filePath"
+        sed -i "s|apminsight_agent_id=.*|apminsight_agent_id=$InitVector|" "$filePath"
         if [ "$IsBehindProxy" = true ]; then
             sed -i "s/behind.proxy=false/behind.proxy=true/" "$filePath"
             sed -i "s/proxy.server.host=proxyserver/proxy.server.host=$ProxyHost/" "$filePath"
@@ -309,7 +350,7 @@ function SetGlobalEnvironment() {
     echo "MANAGEENGINE_COMMUNICATION_MODE=direct" | sudo tee -a /etc/environment
     if [ "$DisableAppFilter" = true ] && [ -n "$AppName" ]; then
         echo "SITE24X7_APP_NAME=$AppName" | sudo tee -a /etc/environment
-    fi
+    fi  
 }
 
 function IsAdmin() {
