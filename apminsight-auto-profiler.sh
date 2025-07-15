@@ -348,8 +348,10 @@ ReadDomain() {
 EncryptLicenseKey() {
     if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
         APMINSIGHT_AGENT_START_TIME=$(echo -n $(date -u +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
+        KEY_HEX=$(printf "%s" "$APMINSIGHT_AGENT_START_TIME" | od -An -tx1 | tr -d ' \n')
         APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
-        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64 -A)
+        IV_HEX=$(printf "%s" "$APMINSIGHT_AGENT_ID" | od -An -tx1 | tr -d ' \n')
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K "$KEY_HEX" -iv "$IV_HEX" -base64 -A)
         if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
                 INSTALLATION_FAILURE_MESSAGE="Unable to generate the License string. Abandoning the installation process"
                 exit 1
