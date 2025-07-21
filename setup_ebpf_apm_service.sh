@@ -360,4 +360,3 @@ echo "[+] Log Files:"
 echo "    Stdout:     $LOGS_DIR/stdout.log"
 echo "    Stderr:     $LOGS_DIR/stderr.log"
 echo "    Journal:    sudo journalctl -u $SERVICE_NAME.service"
-
