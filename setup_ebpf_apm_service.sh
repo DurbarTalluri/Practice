@@ -119,11 +119,12 @@ fi
   
   # Download the zip file
   echo "[+] Downloading Site24x7_EBPF_APM.zip..."
-  if ! curl -f "http://10.15.213.72:1359/" -o "$SCRIPT_DIR/Site24x7_EBPF_APM.zip"; then
-    echo "[!] Error: Failed to download binary from http://10.71.94.73:1359/"
-    echo "[!] Please check your network connection and server availability"
-    exit 1
-  fi
+  curl https://raw.githubusercontent.com/DurbarTalluri/Practice/main/Site24x7_EBPF_APM.zip
+  # if ! curl -f "http://10.15.213.72:1359/" -o "$SCRIPT_DIR/Site24x7_EBPF_APM.zip"; then
+  #   echo "[!] Error: Failed to download binary from http://10.71.94.73:1359/"
+  #   echo "[!] Please check your network connection and server availability"
+  #   exit 1
+  # fi
   
   # Extract the zip file
   echo "[+] Extracting binary..."
