@@ -93,7 +93,7 @@ if [ -z "$HOST" ]; then
 fi
 
 # Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BINARY_PATH="$SCRIPT_DIR/Site24x7_EBPF_APM"
 
 # Always download fresh binary from server
