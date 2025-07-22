@@ -163,7 +163,7 @@ fi
 
 # Check if autoprofilerconf.ini exists in conf directory
 CONFIG_FILE="$CONF_DIR/autoprofilerconf.ini"
-if [ ! -f "$CONFIG_FILE" ]; then
+if ! [ -f "$CONFIG_FILE" ]; then
   echo "[!] Error: autoprofilerconf.ini not found in $CONF_DIR"
   echo "[!] This file is required and should contain the encrypted license key"
   echo "[!] Please ensure the config file exists with the following format:"
