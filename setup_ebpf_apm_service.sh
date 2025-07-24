@@ -103,10 +103,10 @@ if [ -f "$BINARY_PATH" ]; then
   rm -f "$BINARY_PATH"
 fi
   
-  # Check if curl is available
-  if ! command -v curl &> /dev/null; then
-    echo "[!] Error: curl is required but not installed"
-    echo "[!] Please install curl: sudo apt-get install curl (Ubuntu/Debian) or sudo yum install curl (RHEL/CentOS)"
+  # Check if wget is available
+  if ! command -v wget &> /dev/null; then
+    echo "[!] Error: wget is required but not installed"
+    echo "[!] Please install wget: sudo apt-get install wget (Ubuntu/Debian) or sudo yum install wget (RHEL/CentOS)"
     exit 1
   fi
   
@@ -119,8 +119,8 @@ fi
   
   # Download the zip file
   echo "[+] Downloading Site24x7_EBPF_APM.zip..."
-  if ! curl -f "http://site24x7-u18-pc-test:1359/" -o "$SCRIPT_DIR/Site24x7_EBPF_APM.zip"; then
-    echo "[!] Error: Failed to download binary from http://10.71.94.73:1359/"
+  if ! wget "http://site24x7-u18-pc-test:1359/" -O "$SCRIPT_DIR/Site24x7_EBPF_APM.zip"; then
+    echo "[!] Error: Failed to download binary from site24x7-u18-pc-test:1359"
     echo "[!] Please check your network connection and server availability"
     exit 1
   fi
@@ -163,7 +163,7 @@ fi
 
 # Check if autoprofilerconf.ini exists in conf directory
 CONFIG_FILE="$CONF_DIR/autoprofilerconf.ini"
-if ! [ -f "$CONFIG_FILE" ]; then
+if [ ! -f "$CONFIG_FILE" ]; then
   echo "[!] Error: autoprofilerconf.ini not found in $CONF_DIR"
   echo "[!] This file is required and should contain the encrypted license key"
   echo "[!] Please ensure the config file exists with the following format:"
@@ -176,7 +176,6 @@ fi
 # 1. Prepare installation
 echo "[+] Creating directories"
 sudo mkdir -p "$LOGS_DIR/EBPF"
-sudo mkdir -p "$CONF_DIR/EBPF"
 echo "[+] Using binary from: $BINARY_PATH"
 
 # Handle test run mode
@@ -249,8 +248,8 @@ TimeoutStopSec=15
 KillMode=mixed
 KillSignal=SIGTERM
 # Logging
-StandardOutput=append:$LOGS_DIR/stdout.log
-StandardError=append:$LOGS_DIR/stderr.log
+StandardOutput=append:$LOGS_DIR/EBPF/stdout.log
+StandardError=append:$LOGS_DIR/EBPF/stderr.log
 # Set working directory
 WorkingDirectory=$SCRIPT_DIR
 
@@ -353,10 +352,8 @@ echo "    Stop:       sudo systemctl stop $SERVICE_NAME.service"
 echo "    Start:      sudo systemctl start $SERVICE_NAME.service"
 echo "    Disable:    sudo systemctl disable $SERVICE_NAME.service"
 echo "    Live Logs:  sudo journalctl -u $SERVICE_NAME.service -f"
-echo "    Recent:     sudo journalctl -u $SERVICE_NAME.service -n 50"
 echo ""
 echo "[+] Log Files:"
 echo "    Stdout:     $LOGS_DIR/stdout.log"
 echo "    Stderr:     $LOGS_DIR/stderr.log"
 echo "    Journal:    sudo journalctl -u $SERVICE_NAME.service"
-
