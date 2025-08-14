@@ -1,6 +1,7 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
+APMINSIGHT_HOST=http://localhost:5000
 AUTOPROFILER_FILES_DOWNLOAD_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-files.zip
 AUTOPROFILER_FILES_CHECKSUM_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
@@ -40,7 +41,7 @@ IS_32BIT=$BOOLEAN_FALSE
 IS_64BIT=$BOOLEAN_FALSE
 ARCH_BASED_DOWNLOAD_PATH_EXTENSION=""
 APMSIGHT_PROTOCOL="http"
-APMINSIGHT_AUTOPROFILER_VERSION="1.0.0"
+APMINSIGHT_AUTOPROFILER_VERSION="1.0.2"
 AUTOPROFILER_OPERATION="install"
 GLIBC_VERSION_COMPATIBLE="2.7"
 GCC_VERSION_COMPATIBLE="5.4"
@@ -233,7 +234,7 @@ ReadConfigFromArgs() {
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
                     APMINSIGHT_MONITOR_GROUP=$value
                 elif [ "$Key" = "AGENT_KEY" ]; then
-                    AGENT_KEY=$value
+                    SERVER_MONITOR_KEY=$value
                 elif [ "$Key" = "CUSTOM_APM_AGENTS" ]; then
                     CUSTOM_APM_AGENTS="$value"
                 elif [ "$Key" = "JAVA_AGENT_DOWNLOAD_URL" ]; then
@@ -325,6 +326,20 @@ EncryptLicenseKey() {
                 INSTALLATION_FAILURE_MESSAGE="Unable to generate the License string. Abandoning the installation process"
                 exit 1
         fi
+        ReadStaticDomain
+    fi
+}
+
+ReadStaticDomain() {
+    if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+        if echo "$APMINSIGHT_LICENSE_KEY" | grep -q "_"; then
+            APMINSIGHT_DC="${APMINSIGHT_LICENSE_KEY%%_*}"
+            if [ "$APMINSIGHT_DC" = "uk" ] || [ "$APMINSIGHT_DC" = "uae" ]; then
+                APMINSIGHT_STATIC_DOMAIN="https://s247downloads.nimbuspop.com"
+            else
+                APMINSIGHT_STATIC_DOMAIN="https://staticdownloads.site24x7.com"
+            fi
+        fi
     fi
 }
 
@@ -332,8 +347,8 @@ CheckMandatoryConfigurations() {
     if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
         INSTALLATION_FAILURE_MESSAGE="No License key found. Please run the script again with proper License Key"
         exit 1
-    elif [ -z "$AGENT_KEY" ]; then
-        INSTALLATION_FAILURE_MESSAGE="Agent Key not found. Exiting Installation"
+    elif [ -z "$SERVER_MONITOR_KEY" ]; then
+        INSTALLATION_FAILURE_MESSAGE="Server Monitor Key not found. Exiting Installation"
         exit 1
     fi
     if [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ] && [ -z "$APMINSIGHT_HOST" ]; then
@@ -391,8 +406,8 @@ DownloadAutoProfilerBinaries() {
     cd "$TEMP_FOLDER_PATH"
     if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
         if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_URL" ]; then
-            AUTOPROFILER_FILES_DOWNLOAD_URL="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-            AUTOPROFILER_FILES_CHECKSUM_URL="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+            AUTOPROFILER_FILES_DOWNLOAD_URL="$APMINSIGHT_STATIC_DOMAIN""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+            AUTOPROFILER_FILES_CHECKSUM_URL="$APMINSIGHT_STATIC_DOMAIN""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
         fi
         if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
             ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM_URL" "$AGENT_INSTALLATION_PATH/bin"
@@ -549,7 +564,8 @@ WriteToAgentConfFile() {
     if [ -n "$APMINSIGHT_HOST" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
     fi
-    AGENT_CONF_STR="$AGENT_CONF_STR""AGENT_KEY=$AGENT_KEY\n"
+    AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_STATIC_DOMAIN=$APMINSIGHT_STATIC_DOMAIN\n"
+    AGENT_CONF_STR="$AGENT_CONF_STR""SERVER_MONITOR_KEY=$SERVER_MONITOR_KEY\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""HOST_OS=$HOST_OS\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""HOST_ARCH=$HOST_ARCH\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""HOST_LIBC_DIST=$HOST_LIBC_DIST\n"
@@ -660,9 +676,8 @@ UpdateAutoProfilerConfig() {
                         APMINSIGHT_HOST=$value
                         CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_HOST"
                     elif [ "$Key" = "AGENT_KEY" ]; then
-                        Log "AGENT_KEY"
-                        AGENT_KEY=$value
-                        CHANGED_CONFIGS="$CHANGED_CONFIGS AGENT_KEY"
+                        SERVER_MONITOR_KEY=$value
+                        CHANGED_CONFIGS="$CHANGED_CONFIGS SERVER_MONITOR_KEY"
                     else
                         Log "Invalid argument name for AutoProfiler Config Update : $Key. Please provide a valid one"
                     fi
