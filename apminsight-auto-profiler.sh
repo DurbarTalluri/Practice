@@ -1,8 +1,9 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_FILES_DOWNLOAD_URL=https://build-new.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.1_release/Jun_30_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/agents/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip
-AUTOPROFILER_FILES_CHECKSUM_URL=https://build-new.zohocorp.com/me/apm_insight_one_agent/webhost/v1.0.1_release/Jun_30_2025/apminsight_autoprofiler/apminsight_autoprofiler/site24x7/checksum/linux/linux/glibc/amd64/apminsight-auto-profiler-files.zip.sha256
+APMINSIGHT_HOST=http://localhost:5000
+AUTOPROFILER_FILES_DOWNLOAD_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-files.zip
+AUTOPROFILER_FILES_CHECKSUM_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
@@ -20,9 +21,7 @@ APMINSIGHT_LICENSE_KEY=""
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 AGENT_CONF_STR=""
 APMINSIGHT_HOST=""
-APMINSIGHT_HOST_URL=""
 APMINSIGHT_PROXY_URL=""
-APMINSIGHT_DOMAIN="com"
 APMINSIGHT_AGENT_START_TIME=""
 APMINSIGHT_AGENT_ID=""
 APMINSIGHT_DATAEXPORTER_HOST=""
@@ -42,9 +41,9 @@ IS_32BIT=$BOOLEAN_FALSE
 IS_64BIT=$BOOLEAN_FALSE
 ARCH_BASED_DOWNLOAD_PATH_EXTENSION=""
 APMSIGHT_PROTOCOL="http"
-APMINSIGHT_AUTOPROFILER_VERSION="1.0.0"
+APMINSIGHT_AUTOPROFILER_VERSION="1.0.2"
 AUTOPROFILER_OPERATION="install"
-GLIBC_VERSION_COMPATIBLE="2.23"
+GLIBC_VERSION_COMPATIBLE="2.7"
 GCC_VERSION_COMPATIBLE="5.4"
 AUTOPROFILER_INSTALL_STATUS="Successful"
 
@@ -235,7 +234,7 @@ ReadConfigFromArgs() {
                 elif [ "$Key" = "APMINSIGHT_MONITOR_GROUP" ]; then
                     APMINSIGHT_MONITOR_GROUP=$value
                 elif [ "$Key" = "AGENT_KEY" ]; then
-                    AGENT_KEY=$value
+                    SERVER_MONITOR_KEY=$value
                 elif [ "$Key" = "CUSTOM_APM_AGENTS" ]; then
                     CUSTOM_APM_AGENTS="$value"
                 elif [ "$Key" = "JAVA_AGENT_DOWNLOAD_URL" ]; then
@@ -308,19 +307,6 @@ ReadConfigFromArgs() {
     fi
 }
 
-BuildApmHostUrl() {
-    if [ -n "$APMINSIGHT_HOST" ]; then
-        APMINSIGHT_HOST_URL=$APMINSIGHT_HOST
-        return
-    elif [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-        ReadDomain
-        APMINSIGHT_HOST_URL="https://plusinsight.site24x7.""$APMINSIGHT_DOMAIN:443"
-    else
-        INSTALLATION_FAILURE_MESSAGE="Apminsight Host details not configured. Exiting Installation"
-        exit 1
-    fi
-}
-
 SetProxy() {
     if [ -n "$APMINSIGHT_PROXY_URL" ]; then
         export http_proxy=$APMINSIGHT_PROXY_URL
@@ -329,34 +315,52 @@ SetProxy() {
     fi
 }
 
-ReadDomain() {
-    if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
-        return
-    fi
-    if echo "$APMINSIGHT_LICENSE_KEY" | grep -q "_"; then
-        APMINSIGHT_DOMAIN="${APMINSIGHT_LICENSE_KEY%%_*}"
-        if [ "$APMINSIGHT_DOMAIN" = "us" ] || [ "$APMINSIGHT_DOMAIN" = "gd" ]; then
-            APMINSIGHT_DOMAIN="com"
-        fi
-    fi
-}
-
 EncryptLicenseKey() {
     if [ -n "$APMINSIGHT_LICENSE_KEY" ]; then
         APMINSIGHT_AGENT_START_TIME=$(echo -n $(date -u +"%Y%m%dT%H%M%S%N") | xargs printf "%-32s" | tr ' ' '0')
+        KEY_HEX=$(printf "%s" "$APMINSIGHT_AGENT_START_TIME" | od -An -tx1 | tr -d ' \n')
         APMINSIGHT_AGENT_ID="$(cat /dev/urandom | tr -dc '0-9' | fold -w 16 | head -n 1)"
-        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K $(echo -n "$APMINSIGHT_AGENT_START_TIME" | xxd -p -c 256) -iv $(echo -n "$APMINSIGHT_AGENT_ID" | xxd -p -c 256) -base64 -A)
+        IV_HEX=$(printf "%s" "$APMINSIGHT_AGENT_ID" | od -An -tx1 | tr -d ' \n')
+        APMINSIGHT_LICENSEKEY=$(echo -n "$APMINSIGHT_LICENSE_KEY" | openssl enc -aes-256-cbc -K "$KEY_HEX" -iv "$IV_HEX" -base64 -A)
         if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
                 INSTALLATION_FAILURE_MESSAGE="Unable to generate the License string. Abandoning the installation process"
                 exit 1
         fi
+        ReadStaticDomain
     fi
+}
+
+ReadStaticDomain() {
+    if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
+        if echo "$APMINSIGHT_LICENSE_KEY" | grep -q "_"; then
+            APMINSIGHT_DC="${APMINSIGHT_LICENSE_KEY%%_*}"
+            if [ "$APMINSIGHT_DC" = "uk" ] || [ "$APMINSIGHT_DC" = "uae" ]; then
+                APMINSIGHT_STATIC_DOMAIN="https://s247downloads.nimbuspop.com"
+            else
+                APMINSIGHT_STATIC_DOMAIN="https://staticdownloads.site24x7.com"
+            fi
+        fi
+    fi
+}
+
+CheckMandatoryConfigurations() {
+    if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
+        INSTALLATION_FAILURE_MESSAGE="No License key found. Please run the script again with proper License Key"
+        exit 1
+    elif [ -z "$SERVER_MONITOR_KEY" ]; then
+        INSTALLATION_FAILURE_MESSAGE="Server Monitor Key not found. Exiting Installation"
+        exit 1
+    fi
+    if [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ] && [ -z "$APMINSIGHT_HOST" ]; then
+        INSTALLATION_FAILURE_MESSAGE="APMINSIGHT_HOST is not found. Please run the script again with proper Apminsight Host details"
+        exit 1
+    fi 
 }
 
 SetupAgentConfigurations() {
     ReadConfigFromFile
     ReadConfigFromArgs "$@"
-    BuildApmHostUrl
+    CheckMandatoryConfigurations
     SetProxy
     EncryptLicenseKey
 }
@@ -400,29 +404,46 @@ CreateAutoProfilerFiles() {
 DownloadAutoProfilerBinaries() {
     mkdir -p "$TEMP_FOLDER_PATH"
     cd "$TEMP_FOLDER_PATH"
-    for host_url in $(echo "$APMINSIGHT_HOST_URL" | tr ',' '\n'); do
+    if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
         if [ -z "$AUTOPROFILER_FILES_DOWNLOAD_URL" ]; then
-            if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-                AUTOPROFILER_FILES_DOWNLOAD_URL="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-            elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-                AUTOPROFILER_FILES_DOWNLOAD_URL="$host_url""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
-            fi
+            AUTOPROFILER_FILES_DOWNLOAD_URL="$APMINSIGHT_STATIC_DOMAIN""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+            AUTOPROFILER_FILES_CHECKSUM_URL="$APMINSIGHT_STATIC_DOMAIN""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
         fi
-        if [ -z "$AUTOPROFILER_FILES_CHECKSUM_URL" ]; then
-            if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-                AUTOPROFILER_FILES_CHECKSUM_URL="https://staticdownloads.site24x7.com""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
-            elif [ "$APMINSIGHT_BRAND" = "ApplicationsManager" ]; then
-                AUTOPROFILER_FILES_CHECKSUM_URL="$host_url""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
-            fi
-        fi
-        Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_URL"
-        if wget --no-check-certificate -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
+        if wget -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
             ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM_URL" "$AGENT_INSTALLATION_PATH/bin"
         else
-            Log "Failed to Download Apminsight AutoProfiler binaries"
-            continue
+            INSTALLATION_FAILURE_MESSAGE="Failed to Download Apminsight AutoProfiler binaries"
+            exit 1
         fi
-    done
+    else
+        DOWNLOAD_SUCCESSFUL="$BOOLEAN_FALSE"
+        if [ -n "$AUTOPROFILER_FILES_DOWNLOAD_URL" ]; then
+            if wget --no-check-certificate -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
+                ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM_URL" "$AGENT_INSTALLATION_PATH/bin"
+                DOWNLOAD_SUCCESSFUL="$BOOLEAN_TRUE"
+            else
+                INSTALLATION_FAILURE_MESSAGE="Failed to Download Apminsight AutoProfiler binaries"
+                exit 1
+            fi
+        else
+            for host_url in $(echo "$APMINSIGHT_HOST" | tr ',' '\n'); do
+                AUTOPROFILER_FILES_DOWNLOAD_URL="$host_url""$AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip"
+                AUTOPROFILER_FILES_CHECKSUM_URL="$host_url""$AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX""$ARCH_BASED_DOWNLOAD_PATH_EXTENSION""/apminsight-auto-profiler-files.zip.sha256"
+                Log "Downloading Apminsight AutoProfiler binaries from $AUTOPROFILER_FILES_DOWNLOAD_URL"
+                if wget --no-check-certificate -q -nv "$AUTOPROFILER_FILES_DOWNLOAD_URL"; then
+                    ValidateChecksumAndInstallAgent "apminsight-auto-profiler-files.zip" "$AUTOPROFILER_FILES_CHECKSUM_URL" "$AGENT_INSTALLATION_PATH/bin"
+                    DOWNLOAD_SUCCESSFUL="$BOOLEAN_TRUE"
+                else
+                    Log "Failed to Download Apminsight AutoProfiler binaries"
+                    continue
+                fi
+            done
+            if [ "$DOWNLOAD_SUCCESSFUL" = "$BOOLEAN_FALSE" ]; then
+                INSTALLATION_FAILURE_MESSAGE="Failed to Download Apminsight AutoProfiler binaries"
+                exit 1
+            fi
+        fi
+    fi
     mv "$AGENT_INSTALLATION_PATH/bin/autoprofilerloader.so" "$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH"
     cd "$CURRENT_DIRECTORY"
 }
@@ -543,9 +564,8 @@ WriteToAgentConfFile() {
     if [ -n "$APMINSIGHT_HOST" ]; then
         AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST=$APMINSIGHT_HOST\n"
     fi
-    AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_HOST_URL=$APMINSIGHT_HOST_URL\n"
-    AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_DOMAIN=$APMINSIGHT_DOMAIN\n"
-    AGENT_CONF_STR="$AGENT_CONF_STR""AGENT_KEY=$AGENT_KEY\n"
+    AGENT_CONF_STR="$AGENT_CONF_STR""APMINSIGHT_STATIC_DOMAIN=$APMINSIGHT_STATIC_DOMAIN\n"
+    AGENT_CONF_STR="$AGENT_CONF_STR""SERVER_MONITOR_KEY=$SERVER_MONITOR_KEY\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""HOST_OS=$HOST_OS\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""HOST_ARCH=$HOST_ARCH\n"
     AGENT_CONF_STR="$AGENT_CONF_STR""HOST_LIBC_DIST=$HOST_LIBC_DIST\n"
@@ -648,22 +668,16 @@ UpdateAutoProfilerConfig() {
                     elif [ "$Key" = "APMINSIGHT_LICENSE_KEY" ]; then
                         APMINSIGHT_LICENSE_KEY=$value
                         EncryptLicenseKey
-                        if [ "$APMINSIGHT_BRAND" = "Site24x7" ]; then
-                            ReadDomain
-                            APMINSIGHT_HOST_URL="https://plusinsight.site24x7.""$APMINSIGHT_DOMAIN:443"
-                        fi
-                        CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_LICENSEKEY APMINSIGHT_DOMAIN APMINSIGHT_AGENT_START_TIME APMINSIGHT_AGENT_ID APMINSIGHT_HOST_URL"
+                        CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_LICENSEKEY APMINSIGHT_AGENT_START_TIME APMINSIGHT_AGENT_ID"
                     elif [ "$Key" = "APMINSIGHT_PROXY_URL" ]; then
                         APMINSIGHT_PROXY_URL=$value
                         CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_PROXY_URL"
                     elif [ "$Key" = "APMINSIGHT_HOST" ]; then
                         APMINSIGHT_HOST=$value
-                        APMINSIGHT_HOST_URL="$APMINSIGHT_HOST"
-                        CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_HOST APMINSIGHT_HOST_URL"
+                        CHANGED_CONFIGS="$CHANGED_CONFIGS APMINSIGHT_HOST"
                     elif [ "$Key" = "AGENT_KEY" ]; then
-                        Log "AGENT_KEY"
-                        AGENT_KEY=$value
-                        CHANGED_CONFIGS="$CHANGED_CONFIGS AGENT_KEY"
+                        SERVER_MONITOR_KEY=$value
+                        CHANGED_CONFIGS="$CHANGED_CONFIGS SERVER_MONITOR_KEY"
                     else
                         Log "Invalid argument name for AutoProfiler Config Update : $Key. Please provide a valid one"
                     fi
@@ -827,23 +841,6 @@ checkGlibcCompatibility() {
     fi
 }
 
-checkGccCompatibility() {
-    GCC_VERSION="$(gcc --version | awk 'NR==1{ print $NF }')"
-    GCC_VERSION_MAJ=$(echo "$GCC_VERSION" | sed 's/\..*//')
-    GCC_VERSION_MIN=$(echo "$GCC_VERSION" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
-    GCC_VERSION_COMPATIBLE_MAJ=$(echo "$GCC_VERSION_COMPATIBLE" | sed 's/\..*//')
-    GCC_VERSION_COMPATIBLE_MIN=$(echo "$GCC_VERSION_COMPATIBLE" | sed 's/^[^\.]*\.\([^\.]*\).*/\1/')
-    if [ "$GCC_VERSION_MAJ" -lt "$GCC_VERSION_COMPATIBLE_MAJ" ]; then
-        INSTALLATION_FAILURE_MESSAGE="GCC VERSION INCOMPATIBLE"
-        exit 1
-    elif [ "$GCC_VERSION_MAJ" -eq "$GCC_VERSION_COMPATIBLE_MAJ" ]; then
-        if [ "$GCC_VERSION_MIN" -lt "$GCC_VERSION_COMPATIBLE_MIN" ]; then
-            INSTALLATION_FAILURE_MESSAGE="GCC VERSION INCOMPATIBLE"
-            exit 1
-        fi
-    fi
-}
-
 WriteToInfoFile() {
     Log "WRITING TO $AUTOPROFILER_INFO_FILEPATH file"
     mkdir -p "$AGENT_INSTALLATION_PATH"
@@ -853,7 +850,6 @@ WriteToInfoFile() {
 
 checkCompatibility() {
     checkGlibcCompatibility
-    checkGccCompatibility
 }
 
 UninstallAutoProfiler() {
@@ -875,6 +871,17 @@ UninstallAutoProfiler() {
     exit 0
 }
 
+checkPreloaderCompatibility() {
+    Log "TESTING APM INSIGHT PRELOADER BINARY COMPATIBILITY"
+    Log "$(timeout 1 LD_PRELOAD="$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH" /bin/true 2>&1)"
+
+    if [ $? -ne 0 ]; then
+        INSTALLATION_FAILURE_MESSAGE="❌ PRELOADER INCOMPATIBLE WITH HOST ENVIRONMENT"
+        exit 1
+    fi
+    Log "✅ PRELOADER COMPATIBLE WITH HOST ENVIRONMENT"
+}
+
 main() {
     CheckArgs $@
     CheckRoot
@@ -887,6 +894,7 @@ main() {
     SetupPreInstallationChecks
     SetupAgentConfigurations "$@"
     SetupAutoProfilerFiles
+    checkPreloaderCompatibility
     WriteToAgentConfFile
     GiveFilePermissions
     RegisterAutoProfilerService
