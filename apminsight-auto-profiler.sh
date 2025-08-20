@@ -1,7 +1,6 @@
 #!/bin/sh
 
 AGENT_DOWNLOAD_LINKS="AUTOPROFILER_FILES_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_FILES_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-APMINSIGHT_HOST=http://localhost:5000
 AUTOPROFILER_FILES_DOWNLOAD_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-files.zip
 AUTOPROFILER_FILES_CHECKSUM_URL=https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-files.zip.sha256
 APMINSIGHT_BRAND="Site24x7"
@@ -20,7 +19,7 @@ APMINSIGHT_LICENSEKEY=""
 APMINSIGHT_LICENSE_KEY=""
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 AGENT_CONF_STR=""
-APMINSIGHT_HOST=""
+APMINSIGHT_HOST="http://localhost:5000"
 APMINSIGHT_PROXY_URL=""
 APMINSIGHT_AGENT_START_TIME=""
 APMINSIGHT_AGENT_ID=""
