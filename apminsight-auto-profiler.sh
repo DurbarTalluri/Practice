@@ -1,13 +1,15 @@
 #!/bin/sh
 
 AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_LINKS="AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_INSTALL_SCRIPT_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
+AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_URL="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-install.sh"
+AUTOPROFILER_INSTALL_SCRIPT_CHECKSUM_URL="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-install.sh.sha256"
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 APMINSIGHT_AUTOPROFILER_PATH="/opt"
-APMINSIGHT_AUTOPROFILER_VERSION="1.2.0"
+APMINSIGHT_AUTOPROFILER_VERSION="1.3.0"
 STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/autoprofilerconf.ini"
 AGENT_STARTUP_LOGFILE_PATH=""
 INSTALL_ARGUMENTS=""
@@ -505,7 +507,7 @@ ValidateChecksumAndInstallAutoProfiler() {
             exit 1
         else
             Log "Successfully Installed Apminsight AutoProfiler"
-            AUTOPROFILER_INSTALL_STATUS="Success"
+            AUTOPROFILER_INSTALL_STATUS="Successful"
             RemoveInstallationFiles
             MoveInstallationFiles
         fi
