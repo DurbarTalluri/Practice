@@ -9,7 +9,7 @@ APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 APMINSIGHT_AUTOPROFILER_PATH="/opt"
-APMINSIGHT_AUTOPROFILER_VERSION="1.3.0"
+APMINSIGHT_AUTOPROFILER_VERSION="1.2.0"
 STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/autoprofilerconf.ini"
 AGENT_STARTUP_LOGFILE_PATH=""
 INSTALL_ARGUMENTS=""
@@ -29,8 +29,6 @@ SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 ARCH_BASED_DOWNLOAD_PATH_EXTENSION=""
 INSTALLATION_FAILURE_MESSAGE=""
-AUTOPROFILER_INSTALL_STATUS="Successful"
-AUTOPROFILER_OPERATION="install"
 
 exitFunc() {
     if [ $? -eq 1 ]; then
@@ -92,7 +90,6 @@ ReadBrandName() {
     AUTOPROFILER_INFO_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_config.ini"
     AGENT_ROOT_DIR="/opt/$APMINSIGHT_BRAND_LCASE"
     APMINSIGHT_USER="$APMINSIGHT_BRAND_LCASE-user"
-    APMINSIGHT_SERVICE_FILE="$APMINSIGHT_BRAND_LCASE""apmautoprofiler.service"
     APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME="lib"$APMINSIGHT_BRAND_LCASE"apmautoprofilerloader.so"
     APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH="/lib/$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME"
     FS_AUTOPROFILER_STATUS_FILEPATH="$AGENT_INSTALLATION_PATH/fs_apm_insight_status.json"
@@ -262,20 +259,75 @@ FindKeyValPairInFile() {
     return 1
 }
 
+CheckInitSystem() {
+    if command -v systemctl >/dev/null 2>&1 && systemctl list-units --type=service --all >/dev/null 2>&1; then
+        Log "Detected systemd as init system"
+        INIT_SYSTEM="systemd"
+        APMINSIGHT_SERVICE_FILE="$APMINSIGHT_BRAND_LCASE""apmautoprofiler.service"
+    elif [ -f /etc/init.d/cron ] || [ -f /etc/init.d/crond ]; then
+        Log "Detected sysvinit as init system"
+        INIT_SYSTEM="sysvinit"
+        APMINSIGHT_SERVICE_FILE="$APMINSIGHT_BRAND_LCASE""apmautoprofiler"
+    else
+        INSTALLATION_FAILURE_MESSAGE="Unsupported init system. Only systemd and init.d are supported."
+        exit 1
+    fi
+    INIT_SYSTEM="sysvinit"
+    APMINSIGHT_SERVICE_FILE="$APMINSIGHT_BRAND_LCASE""apmautoprofiler"
+}
+
+CheckDistribution() {
+    if cat /etc/os-release 2>/dev/null | grep -iqE "rhel"; then
+        IS_RHEL_BASED_DIST=1
+        Log "Red Hat Enterprise Linux detected."
+    elif cat /etc/os-release 2>/dev/null | grep -iqE "centos"; then
+        IS_RHEL_BASED_DIST=1
+        Log "CentOS detected."
+    fi
+}
+
+CheckAndRemoveExistingService() {
+    CheckInitSystem
+    CheckDistribution
+    Log "CHECKING AND REMOVING EXISTING AUTOPROFILER SERVICE IF ANY"
+    if [ "$INIT_SYSTEM" = "sysvinit" ]; then
+        if service --status-all 2>&1 | grep -q "$APMINSIGHT_SERVICE_FILE"; then
+            Log "Found an existing $APMINSIGHT_SERVICE_FILE, Removing the service"
+            Log "$(service $APMINSIGHT_SERVICE_FILE stop 2>&1)"
+            if [ $IS_RHEL_BASED_DIST -eq 1 ]; then
+                Log "$(chkconfig $APMINSIGHT_SERVICE_FILE off 2>&1)"
+                Log "$(chkconfig --del $APMINSIGHT_SERVICE_FILE 2>&1)"
+            else
+                Log "$(update-rc.d -f $APMINSIGHT_SERVICE_FILE remove 2>&1)"
+            fi
+            rm -f /etc/init.d/$APMINSIGHT_SERVICE_FILE
+        else
+            Log "No existing $APMINSIGHT_SERVICE_FILE found"
+        fi
+    elif [ "$INIT_SYSTEM" = "systemd" ]; then
+        if systemctl list-units --type=service --all | grep -q "$APMINSIGHT_SERVICE_FILE"; then
+            Log "Found an existing $APMINSIGHT_SERVICE_FILE, Removing the service"
+            Log "$(systemctl stop $APMINSIGHT_SERVICE_FILE 2>&1)"
+            Log "$(systemctl disable $APMINSIGHT_SERVICE_FILE 2>&1)"
+            Log "$(systemctl daemon-reload 2>&1)"
+        else
+            Log "No existing $APMINSIGHT_SERVICE_FILE found"
+        fi
+        rm -f /etc/systemd/system/$APMINSIGHT_SERVICE_FILE
+    fi
+}
+
 UninstallAutoProfiler() {
     Log "$(sed -i "\|$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME|d" /etc/ld.so.preload 2>&1)"
     Log "$(sed -i "\|$APMINSIGHT_BRAND_UCASE|d" /etc/environment 2>&1)"
-    Log "$(systemctl stop $APMINSIGHT_SERVICE_FILE 2>&1)"
-    Log "$(systemctl disable $APMINSIGHT_SERVICE_FILE 2>&1)"
+    CheckAndRemoveExistingService
     Log "$(rm $APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH 2>&1)"
     Log "$(sh /opt/$DATAEXPORTER_NAME/bin/service.sh uninstall 2>&1)"
     Log "$(rm -r /opt/$DATAEXPORTER_NAME 2>&1)"
     Log "$(pip uninstall --yes apminsight 2>&1)"
-    Log "$(rm /etc/systemd/system/$APMINSIGHT_SERVICE_FILE 2>&1)"
     if grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
-        Log "$(sudo sed -i '/\b'$APMINSIGHT_USER'\b/d' /etc/sudoers 2>&1)"
+        Log "$(sed -i '/\b'$APMINSIGHT_USER'\b/d' /etc/sudoers 2>&1)"
     fi
-    Log "$(systemctl daemon-reload 2>&1)"
     Log "$(mv $AGENT_STARTUP_LOGFILE_PATH "$AGENT_ROOT_DIR" 2>&1)"
     Log "$(rm -r $AGENT_INSTALLATION_PATH 2>&1)"
     exit 0
@@ -413,7 +465,7 @@ WriteToInfoFile() {
     Log "WRITING TO $AUTOPROFILER_INFO_FILEPATH file"
     mkdir -p "$AGENT_INSTALLATION_PATH"
     touch "$AUTOPROFILER_INFO_FILEPATH"
-    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler.service\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"
+    echo "[apm_insight]\nProcessName=apminsight-autoprofiler start\nServiceName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nDisplayName="$APMINSIGHT_BRAND_LCASE"apmautoprofiler\nVersion=$APMINSIGHT_AUTOPROFILER_VERSION" > "$AUTOPROFILER_INFO_FILEPATH"
 }
 
 CheckBit() {
@@ -500,14 +552,14 @@ ValidateChecksumAndInstallAutoProfiler() {
     if [ "$Originalchecksumvalue" = "$Downloadfilechecksumvalue" ]; then
         mv "$file" "$destinationpath"
         cd "$destinationpath"
-        sudo sh apminsight-auto-profiler-install.sh $INSTALL_ARGUMENTS
+        sh apminsight-auto-profiler-install.sh $INSTALL_ARGUMENTS
         INSTALL_EXIT_CODE=$?
         if [ $INSTALL_EXIT_CODE -ne 0 ]; then
             Log "Failed to Install Apminsight AutoProfiler"
             exit 1
         else
             Log "Successfully Installed Apminsight AutoProfiler"
-            AUTOPROFILER_INSTALL_STATUS="Successful"
+            AUTOPROFILER_INSTALL_STATUS="Success"
             RemoveInstallationFiles
             MoveInstallationFiles
         fi
@@ -570,8 +622,8 @@ InstallAutoProfiler() {
 main() {
     StoreInstallArgs "$@"
     ReadBrandName
-    CheckArgs "$@"
     RedirectLogs
+    CheckArgs "$@"
     CheckRoot
     CheckAgentInstallation "$@"
     WriteToInfoFile
