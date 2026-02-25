@@ -1,15 +1,13 @@
 #!/bin/sh
 
 AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_LINKS="AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_INSTALL_SCRIPT_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
-AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_URL="https://raw.githubusercontent.com/DurbarTalluri/Practice/durbar/apminsight-auto-profiler-install.sh"
-AUTOPROFILER_INSTALL_SCRIPT_CHECKSUM_URL="https://raw.githubusercontent.com/DurbarTalluri/Practice/durbar/apminsight-auto-profiler-install.sh.sha256"
 APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
 TEMP_FOLDER_PATH="$CURRENT_DIRECTORY/temp"
 APMINSIGHT_AUTOPROFILER_PATH="/opt"
-APMINSIGHT_AUTOPROFILER_VERSION="1.2.0"
+APMINSIGHT_AUTOPROFILER_VERSION="1.3.0"
 STARTUP_CONF_FILEPATH="$CURRENT_DIRECTORY/autoprofilerconf.ini"
 AGENT_STARTUP_LOGFILE_PATH=""
 INSTALL_ARGUMENTS=""
@@ -29,6 +27,8 @@ SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 ARCH_BASED_DOWNLOAD_PATH_EXTENSION=""
 INSTALLATION_FAILURE_MESSAGE=""
+AUTOPROFILER_INSTALL_STATUS="Successful"
+AUTOPROFILER_OPERATION="install"
 
 exitFunc() {
     if [ $? -eq 1 ]; then
@@ -36,6 +36,9 @@ exitFunc() {
         AUTOPROFILER_INSTALL_STATUS="Failed"
     else
         INSTALLATION_FAILURE_MESSAGE=""
+    fi
+    if [ $AUTOPROFILER_OPERATION = "uninstall" ] || [ "$AUTOPROFILER_OPERATION" = "update" ]; then
+        return
     fi
     cat <<EOF > "$FS_AUTOPROFILER_STATUS_FILEPATH"
     {
@@ -178,13 +181,10 @@ ReadConfigFromArgs() {
         esac
         shift 1
     done
-    if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
-        Log "Unable to find License Key from commandline arguments. Please run the apminsight-auto-profiler-install.sh script again providing License Key or set License Key in the configuration file located at $AGENT_INSTALLATION_PATH in the format APMINSIGHT_LICENSEKEY=<Your License Key>"
-    fi 
 }
 
 CheckMandatoryConfigurations() {
-    if [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
+    if [ -z "$APMINSIGHT_LICENSEKEY" ]; then
         INSTALLATION_FAILURE_MESSAGE="No License key found. Please run the script again with proper License Key"
         exit 1
     elif [ -z "$SERVER_MONITOR_KEY" ]; then
@@ -324,6 +324,7 @@ UninstallAutoProfiler() {
     Log "$(rm $APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH 2>&1)"
     Log "$(sh /opt/$DATAEXPORTER_NAME/bin/service.sh uninstall 2>&1)"
     Log "$(rm -r /opt/$DATAEXPORTER_NAME 2>&1)"
+    Log "$(sh /opt/$DATAEXPORTER_NAME/lib/EBPF/setup_ebpf_apm_ctl.sh stop 2>&1)"
     Log "$(pip uninstall --yes apminsight 2>&1)"
     if grep -q '\b'$APMINSIGHT_USER'\b' /etc/sudoers; then
         Log "$(sed -i '/\b'$APMINSIGHT_USER'\b/d' /etc/sudoers 2>&1)"
@@ -559,7 +560,7 @@ ValidateChecksumAndInstallAutoProfiler() {
             exit 1
         else
             Log "Successfully Installed Apminsight AutoProfiler"
-            AUTOPROFILER_INSTALL_STATUS="Success"
+            AUTOPROFILER_INSTALL_STATUS="Successful"
             RemoveInstallationFiles
             MoveInstallationFiles
         fi
@@ -622,8 +623,8 @@ InstallAutoProfiler() {
 main() {
     StoreInstallArgs "$@"
     ReadBrandName
-    RedirectLogs
     CheckArgs "$@"
+    RedirectLogs
     CheckRoot
     CheckAgentInstallation "$@"
     WriteToInfoFile
