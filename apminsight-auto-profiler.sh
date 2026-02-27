@@ -186,7 +186,7 @@ ReadConfigFromArgs() {
 }
 
 CheckMandatoryConfigurations() {
-    if [ -z "$APMINSIGHT_LICENSEKEY" ] && [ -z "$APMINSIGHT_LICENSE_KEY" ]; then
+    if [ -z "$APMINSIGHT_LICENSE_KEY" ] && [ -z "$APMINSIGHT_LICENSEKEY" ]; then
         INSTALLATION_FAILURE_MESSAGE="No License key found. Please run the script again with proper License Key"
         exit 1
     elif [ -z "$SERVER_MONITOR_KEY" ]; then
