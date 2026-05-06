@@ -1,9 +1,9 @@
 #!/bin/sh
 
 AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_LINKS="AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/ AUTOPROFILER_INSTALL_SCRIPT_CHECKSUM_URL_PREFIX=/apminsight/agents/autoprofiler/linux/glibc/"
+APMINSIGHT_BRAND="Site24x7"
 AUTOPROFILER_INSTALL_SCRIPT_DOWNLOAD_URL="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-install.sh"
 AUTOPROFILER_INSTALL_SCRIPT_CHECKSUM_URL="https://raw.githubusercontent.com/DurbarTalluri/Practice/main/apminsight-auto-profiler-install.sh.sha256"
-APMINSIGHT_BRAND="Site24x7"
 APMINSIGHT_BRAND_UCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[a-z]/\U&/g')
 APMINSIGHT_BRAND_LCASE=$(echo "$APMINSIGHT_BRAND" | sed 's/[A-Z]/\L&/g')
 CURRENT_DIRECTORY="$(dirname "$(readlink -f "$0")")"
@@ -321,7 +321,7 @@ CheckAndRemoveExistingService() {
 
 UninstallAutoProfiler() {
     Log "$(sed -i "\|$APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_NAME|d" /etc/ld.so.preload 2>&1)"
-    Log "$(sed -i "\|$APMINSIGHT_BRAND_UCASE|d" /etc/environment 2>&1)"
+    Log "$(sed -i "\|APMINSIGHT|d" /etc/environment 2>&1)"
     CheckAndRemoveExistingService
     Log "$(rm $APMINSIGHT_AUTOPROFILER_PRELOADER_BINARY_PATH 2>&1)"
     Log "$(sh /opt/$DATAEXPORTER_NAME/bin/service.sh uninstall 2>&1)"
