@@ -451,14 +451,18 @@ Target specific applications for monitoring:
 
 ```yaml
 includeAppLabels:
-  javaApp:
-    - app: "my-java-service"
-    - tier: "backend"
-  pythonApp:
-    - app: "my-python-service"
+  # Namespace: production 
+  production:
+    - app: payment-service
+      tier: backend
+    - app: order-service
+      tier: backend 
+  staging:
+    - app: payment-service
+    - app: inventory-service
 
 excludeAppLabels:
-  javaApp:
+  default:
     - app: "legacy-service"
 ```
 
