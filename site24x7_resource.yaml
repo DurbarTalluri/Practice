@@ -1,0 +1,247 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: site24x7-agent
+  namespace: site24x7
+type: Opaque
+data:
+  s247_device_key: aW5fNTA4NjUxYjQ1ZDEzNGI1YzFlZTgwYzNmMTVkNDJiMmY=  # Base64-encoded value of "sec_val"
+---
+apiVersion: site24x7.com/v1alpha1
+kind: Site24x7K8s
+metadata:
+  namespace: site24x7
+  name: site24x7k8s-resource
+spec:
+  applyDefaultTolerations: true
+  tolerations: []
+  openShift: false
+  gkeAutoPilot: false
+  applyPriorityClass: true
+  priorityClassValue: 12000000
+  
+  # Proxy Configuration
+  proxy:
+    http_proxy: ""
+    https_proxy: ""
+  # Agent type specification
+  installationType:
+    agentType: "custom"  # Options: "fso", "apm", "infra", "custom"
+    customOptions:
+      server: true
+      applications: false
+      applogs: false
+      plugins: false
+      automation: false
+      apmInsight: true
+      process: false
+      resourceChecks: false
+  
+  # Infrastructure/Kubernetes monitoring configuration
+  infrastructure:
+    
+    # Resource names
+    # nameOverride: ""  Not implemented for now
+    # fullnameOverride: ""  Not implemented for now
+    # deviceKey: ""  # Deprecated: Device key is fetched from the Secret
+    clusterName: "MY-EKS-CLUSTER"
+
+    managementAction: true
+    # Site24x7 Agent Configuration
+    site24x7Agent:
+      create: true
+      annotations: {}
+      leaseAPI:
+        enabled: true
+        leaseDurationSeconds: 30
+      updateStrategy:
+        type: "RollingUpdate"
+        rollingUpdate:
+          maxUnavailable: "55%"
+      nodeSelector: {}
+      site24x7AgentContainer:
+        image:
+          repository: "site24x7"
+          name: "docker-agent"
+          tag: "release22100"
+          pullPolicy: "Always"
+        resources:
+          limits:
+            memory: "1Gi"
+        installerName: "kubernetes"
+        extraEnv: []
+        securityContext: {}
+        applyNonRootSecurityContext: false
+      autoProfilerContainer:
+        image:
+          repository: "durbar99"
+          name: "apminsight-autoprofiler"
+          tag: "latest"
+          pullPolicy: "Always"
+        # extraEnv: 
+        #   - name: "APMINSIGHT_HOST"
+        #     value: "https://plusinsight-otel.localsite24x7.com"
+    # Kube State Metrics Configuration
+    site24x7KubeStateMetrics:
+      create: true
+      annotations: {}
+      updateStrategy: {}
+      nodeSelector: {}
+      securityContext: {}
+      replicas: 1
+      image:
+        repository: "registry.k8s.io"
+        name: "kube-state-metrics/kube-state-metrics"
+        tag: "v2.9.2"
+        pullPolicy: "IfNotPresent"
+        imagePullSecrets: []
+      resources:
+        requests:
+          cpu: "10m"
+          memory: "100Mi"
+        limits:
+          cpu: "200m"
+          memory: "256Mi"
+
+    # Cluster Agent Configuration
+    site24x7ClusterAgent:
+      create: true
+      replicas: 1
+      annotations: {}
+      updateStrategy: {}
+      nodeSelector: {}
+      securityContext: {}
+      image:
+        repository: "site24x7"
+        name: "docker-agent"
+        tag: "cluster_agent_nonroot"
+        pullPolicy: "IfNotPresent"
+        imagePullSecrets: []
+      resources:
+        limits:
+          cpu: "600m"
+          memory: "1Gi"
+      livenessProbe: {}
+      readinessProbe: {}
+
+    # Service Account Configuration
+    serviceAccount:
+      create: true
+      annotations: {}
+      name: "site24x7"
+
+    # ConfigMap Configuration
+    site24x7ConfigMap:
+      create: true
+      nodeAgentVersion: "2000"
+      clusterAgentVersion: "100"
+      oneMin:
+        Pods: "90"
+        Nodes: "90"
+        Namespaces: "90"
+        HorizontalPodAutoscalers: "-1"
+        DaemonSets: "90"
+        Deployments: "60"
+        Endpoints: "-1"
+        ReplicaSets: "-1"
+        StatefulSets: "90"
+        Services: "-1"
+        PV: "-1"
+        PersistentVolumeClaims: "-1"
+        Jobs: "-1"
+        Ingresses: "-1"
+      settings:
+        kubernetes: "300"
+        daemonsets: "300"
+        deployments: "300"
+        statefulsets: "300"
+        pods: "300"
+        nodes: "300"
+        services: "300"
+        replicasets: "900"
+        ingresses: "300"
+        jobs: "300"
+        pv: "300"
+        persistentvolumeclaim: "300"
+        componentstatuses: "300"
+        horizontalpodautoscalers: "300"
+        endpoints: "3600"
+        namespaces: "300"
+        eventcollector: "60"
+        npcdatacollector: "300"
+        npcdatacollector_discovery: "900"
+        resourcedependency: "300"
+        workloadsdatacollector: "300"
+        workloadsdatacollector_discovery: "900"
+        clustermetricsaggregator: "300"
+        sidecarnpccollector: "300"
+        sidecarnpccollector_discovery: "900"
+        dcinit: "900"
+        clusteragent: "1"
+        ksm: "1"
+        guidancemetrics: "20600"
+        termination: "900"
+        kubelet: "300"
+        metadata: "20600"
+        prometheus_integration: "1"
+        plugin_integration: "1"
+        database_integration: "1"
+        ksmprocessor: "1"
+        kubeletdatapersistence: "1"
+        servicerelationdataprocessor: "1"
+        yamlfetcher: "60"
+
+  # APM Configuration
+  apm:
+    monitorAllPods: true
+    includeAppLabels: 
+      javaApp:
+        - app: "sample-java-app"
+    excludeAppLabels: {}
+    agentsImagePullSecrets: []
+    
+    # Java agent configuration
+    java:
+      image:
+        repository: "site24x7"
+        name: "apminsight-javaagent"
+        tag: "7.7.1"
+        pullPolicy: "Always"
+        imagePullSecrets: []
+    
+    # Python agent configuration
+    python:
+      image:
+        repository: "site24x7"
+        name: "apminsight-pythonagent"
+        tag: "latest"
+        pullPolicy: "Always"
+        imagePullSecrets: []
+    
+    # Node.js agent configuration  
+    nodeJS:
+      image:
+        repository: "site24x7"
+        name: "apminsight-nodejsagent"
+        tag: "latest"
+        pullPolicy: "Always"
+        imagePullSecrets: []
+    
+    # .NET agent configuration
+    dotNet:
+      image:
+        repository: "site24x7"
+        name: "apminsight-dotnetagent"
+        tag: "latest"
+        pullPolicy: "Always"
+        imagePullSecrets: []
+    
+    # Data Exporter configuration
+    dataExporter:
+      image:
+        repository: ""
+        name: ""
+        tag: ""
+        pullPolicy: ""
+        imagePullSecrets: []
+      deploymentStrategy: "daemonset"  # Options: "daemonset" or "sidecar"
