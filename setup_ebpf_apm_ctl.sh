@@ -69,7 +69,7 @@ is_process_running() {
     else
       # PID file exists but process is dead
       echo "[!] Stale PID file found, removing..."
-      sudo rm -f "$PID_FILE"
+      rm -f "$PID_FILE"
       return 1  # Process is not running
     fi
   fi
@@ -97,12 +97,12 @@ if [ "$1" = "stop" ]; then
       echo "[+] Found running process with PID: $PID"
       echo "[+] Sending SIGTERM for graceful shutdown..."
       
-      if sudo kill -TERM "$PID" 2>/dev/null; then
+      if kill -TERM "$PID" 2>/dev/null; then
         # Wait for process to stop (max 15 seconds)
         for i in {1..15}; do
           if ! ps -p "$PID" > /dev/null 2>&1; then
             echo "[✓] Process stopped gracefully"
-            sudo rm -f "$PID_FILE"
+            rm -f "$PID_FILE"
             break
           fi
           sleep 1
@@ -111,15 +111,15 @@ if [ "$1" = "stop" ]; then
         # If still running, force kill
         if ps -p "$PID" > /dev/null 2>&1; then
           echo "[!] Process did not stop gracefully, sending SIGKILL..."
-          sudo kill -KILL "$PID" 2>/dev/null
+          kill -KILL "$PID" 2>/dev/null
           sleep 1
           echo "[✓] Process forcefully terminated"
         fi
       fi
-      sudo rm -f "$PID_FILE"
+      rm -f "$PID_FILE"
     else
       echo "[!] PID file exists but process not found, removing stale PID file"
-      sudo rm -f "$PID_FILE"
+      rm -f "$PID_FILE"
     fi
   else
     echo "[!] Could not find PID file"
@@ -133,14 +133,14 @@ if [ "$1" = "stop" ]; then
     echo "[+] Found orphaned process(es), stopping them..."
     for OPID in $ORPHAN_PIDS; do
       echo "[+] Stopping orphaned process PID: $OPID"
-      sudo kill -TERM "$OPID" 2>/dev/null || true
+      kill -TERM "$OPID" 2>/dev/null || true
     done
     sleep 2
     # Force kill if still running
     for OPID in $ORPHAN_PIDS; do
       if ps -p "$OPID" > /dev/null 2>&1; then
         echo "[+] Force killing PID: $OPID"
-        sudo kill -KILL "$OPID" 2>/dev/null || true
+        kill -KILL "$OPID" 2>/dev/null || true
       fi
     done
   fi
@@ -257,7 +257,7 @@ fi
 PID_FILE="$LOGS_DIR/EBPF/site24x7_ebpf_apm.pid"
 
 # Create log directory early (needed for PID file)
-sudo mkdir -p "$LOGS_DIR/EBPF"
+mkdir -p "$LOGS_DIR/EBPF"
 
 # Check if process is already running (only for non-test runs)
 if [ "$TEST_RUN" = false ] && is_process_running; then
@@ -338,7 +338,7 @@ echo "[+] Using binary from: $BINARY_PATH"
 if [ "$TEST_RUN" = true ]; then
     echo ""
     echo "[+] TEST RUN MODE - Running binary directly to test for crashes"
-    echo "[+] Command: sudo $BINARY_PATH --logs_dir $LOGS_DIR --conf_dir $CONF_DIR --exporter_ip $HOST $DEBUG_FLAG"
+    echo "[+] Command: $BINARY_PATH --logs_dir $LOGS_DIR --conf_dir $CONF_DIR --exporter_ip $HOST $DEBUG_FLAG"
     echo "[+] Press Ctrl+C to stop the test run"
     echo ""
     
@@ -397,7 +397,7 @@ sleep 2
 
 # Read the actual PID from the file
 if [ -f "$PID_FILE" ]; then
-  PROCESS_PID=$(sudo cat "$PID_FILE")
+  PROCESS_PID=$(cat "$PID_FILE")
   echo "[+] Process started with PID: $PROCESS_PID"
 else
   echo "[!] Failed to create PID file"
@@ -464,9 +464,9 @@ else
     echo "    2. Check if binary is compatible: file $BINARY_PATH"
     echo "    3. Check library dependencies: ldd $BINARY_PATH"
     echo "    4. Try test run mode: $0 --test-run --logs_dir $LOGS_DIR --conf_dir $CONF_DIR --exporter_ip $HOST"
-    echo "    5. Check system capabilities for eBPF: sudo sysctl kernel.unprivileged_bpf_disabled"
+    echo "    5. Check system capabilities for eBPF: sysctl kernel.unprivileged_bpf_disabled"
     
     # Clean up PID file
-    sudo rm -f "$PID_FILE"
+    rm -f "$PID_FILE"
     exit 1
 fi
